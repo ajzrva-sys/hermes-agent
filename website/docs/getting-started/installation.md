@@ -141,11 +141,13 @@ bash "$HOME/.hermes/hermes-agent/scripts/install.sh" \
 ```
 
 Use `bash scripts/install.sh`, not `/bin/bash`: packaged Bash lives under
-`/usr/local/bin` on FreeBSD. The default layout is per-user even when invoked as
-root. Code and its venv live in `~/.hermes/hermes-agent`, configuration and sessions
-in `~/.hermes`, and launchers in `~/.local/bin`. `--dir` and `--hermes-home` can
-select another installation/data location. Add `~/.local/bin` to your shell's
-`PATH` if needed.
+`/usr/local/bin` on FreeBSD. Non-root installs use `~/.hermes/hermes-agent` and
+`~/.local/bin`. Fresh root installs default to `/usr/local/lib/hermes-agent` and
+`/usr/local/bin`; existing installs under `$HERMES_HOME/hermes-agent` stay in place.
+An explicit `--dir`, including the example above, preserves the chosen checkout
+and uses the per-user launcher. Configuration and sessions remain in
+`$HERMES_HOME` (default `~/.hermes`). Add `~/.local/bin` to `PATH` when using the
+per-user layout.
 When using a custom data location, also set `HERMES_HOME` to that location when
 launching Hermes; the launcher does not permanently bind itself to one profile.
 
@@ -156,6 +158,9 @@ launching Hermes; the launcher does not permanently bind itself to one profile.
 - Hermes uses native `uv` from `pkg`. Its private uv lookup resolves that binary;
   neither the installer nor updater replaces it using Astral's binary downloads.
   Upgrade the system Python, uv, and SQLite packages through FreeBSD's package manager.
+- Node.js/npm are reused from supported native packages, or provisioned with
+  `pkg install node24 npm-node24`. A missing optional Node toolchain does not
+  block the CLI. `bash scripts/install.sh --ensure node` explicitly checks/provisions it.
 - The dependency metadata restricts `pillow-heif` to the version range compatible
   with packaged libheif 1.22. Other platforms retain their existing wheel-backed
   dependency range. The same markers apply during installation and dependency repair.
@@ -173,12 +178,96 @@ hermes doctor
 uv pip check --python "$HOME/.hermes/hermes-agent/venv/bin/python"
 ```
 
-The automated FreeBSD path is CLI-only: it skips local browser downloads,
-Computer Use, Node UI dependency installation, and gateway service setup.
-Explicit browser/desktop installation requests are rejected. Local browser
-automation, desktop/TUI, voice engines with wheel-only dependencies, and rc.d
-service integration are not part of this tested path. Provider authentication
-is separate; `hermes model` is still required before a real model response.
+The automated path remains CLI-first: Computer Use, Node UI dependencies, and
+automatic gateway service setup are skipped. Desktop installation is rejected.
+Provider authentication is separate; run `hermes model` before requesting a model response.
+
+### Developer checkout and authentication
+
+For an existing checkout, `bash setup-hermes.sh --skip-setup` reuses the native
+installer stages, including package checks and dependency policy. It deliberately
+does not fetch, switch branches, or stash a developer's working tree.
+
+If a `claude setup-token` executable has the wrong binary format (for example a
+Linux binary on native FreeBSD), setup returns to manual authentication rather
+than crashing. Run `claude setup-token` on a supported machine and enter its
+result in the authentication prompt, or choose an API-key provider with `hermes model`.
+
+### Optional system browser
+
+Playwright does not publish a FreeBSD Chromium build. Following the system-browser
+approach in [macosxgeek's PR #33487](https://github.com/NousResearch/hermes-agent/pull/33487):
+
+```sh
+# As an administrator:
+pkg install chromium
+# In the account/session running Hermes:
+export AGENT_BROWSER_EXECUTABLE_PATH=/usr/local/bin/chromium
+```
+
+`bash scripts/install.sh --ensure browser` prints this manual setup guidance;
+it does not download a foreign browser or claim browser automation is ready.
+Verify the selected browser/backend separately. Desktop/TUI and wheel-only voice
+engines are still outside the tested native installation path. A headless FreeBSD
+dashboard does not launch a terminal browser; graphical sessions retain auto-open.
+
+### Optional rc.d gateway supervision
+
+First configure a gateway platform and verify `hermes gateway run` under the
+account that will own it. The built-in service installer is not an rc.d manager.
+For manual supervision, save this example as `/usr/local/etc/rc.d/hermes`:
+
+```sh
+#!/bin/sh
+# PROVIDE: hermes
+# REQUIRE: NETWORKING
+# KEYWORD: shutdown
+. /etc/rc.subr
+name="hermes"
+rcvar="hermes_enable"
+command="/usr/sbin/daemon"
+start_cmd="hermes_start"
+hermes_start() {
+    /usr/sbin/daemon -f -R 5 -P "$pidfile" -o "$hermes_log" \
+        -u "$hermes_user" /usr/bin/env \
+        "PATH=/usr/local/bin:/usr/bin:/bin" "HERMES_HOME=$hermes_home" \
+        "$hermes_command" gateway run
+}
+load_rc_config "$name"
+: "${hermes_enable:=NO}"
+: "${hermes_user:=hermes}"
+: "${hermes_home:=/home/hermes/.hermes}"
+: "${hermes_command:=/usr/local/bin/hermes}"
+: "${hermes_log:=/var/log/hermes-gateway.log}"
+: "${hermes_pidfile:=/var/run/hermes.pid}"
+pidfile="$hermes_pidfile"
+run_rc_command "$1"
+```
+
+Set `hermes_user` to an existing account and `hermes_home`/`hermes_command` to its
+configured data directory and executable launcher in `/etc/rc.conf`. Ensure that
+account can traverse the install path. Then, as root:
+
+```sh
+chmod 755 /usr/local/etc/rc.d/hermes
+sysrc hermes_enable=YES
+service hermes start
+service hermes status
+# To stop, signal the supervisor rather than a child that would be restarted:
+service hermes stop
+```
+
+This adapts the upstream PR's manual recipe to `daemon -P` and foreground
+`gateway run`, rather than nesting `gateway start` inside another supervisor.
+Manage restarts with `service hermes restart`; fleet-wide rc.d management by
+`hermes update` is not provided. No service is enabled by the installer.
+
+If the terminal reports missing color capabilities, use `TERM=xterm-256color`
+with a terminal that supports it.
+
+The platform helper, authentication fallback, headless-dashboard behavior,
+native Node/system-browser approach, root layout and manual service guidance are
+adapted from macosxgeek's PR #33487, preserving the newer dependency/update safeguards.
 
 ---
 

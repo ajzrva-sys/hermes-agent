@@ -98,8 +98,6 @@ printf '%s\\n' "$OS" "$PYTHON_PATH" "$PYTHON_VERSION" "$UV_CMD"
 @pytest.mark.parametrize("options", [
     ["--include-desktop"],
     ["--stage", "desktop", "--json"],
-    ["--ensure", "ripgrep,browser"],
-    ["--ensure", "node"],
     ["--no-venv"],
 ])
 def test_unsupported_requests_fail_before_writes_or_downloads(tmp_path, blocked_commands, options):
@@ -133,7 +131,7 @@ def test_unsupported_default_stages_are_structured_skips(tmp_path, blocked_comma
 
 @pytest.mark.freebsd_only
 @pytest.mark.parametrize("function", [
-    "check_node", "install_node_deps", "install_browser_use_cli",
+    "install_node_deps", "install_browser_use_cli",
     "install_computer_use_driver", "maybe_start_gateway",
 ])
 def test_monolithic_optional_helpers_skip_on_freebsd(tmp_path, blocked_commands, function):
@@ -355,6 +353,26 @@ install_system_packages
 
 
 @pytest.mark.freebsd_only
+@pytest.mark.parametrize("layout", ["fresh", "legacy", "explicit"])
+def test_root_layout_preserves_existing_and_explicit_installations(tmp_path, layout):
+    if os.geteuid() != 0:
+        pytest.skip("root layout is exercised on the native root test host")
+    selected = tmp_path / "data"
+    args = ["--hermes-home", str(selected)]
+    if layout == "legacy":
+        (selected / "hermes-agent/.git").mkdir(parents=True)
+    if layout == "explicit":
+        args += ["--dir", str(tmp_path / "chosen")]
+    result = shell(tmp_path, 'detect_os\nresolve_install_layout\n'
+                   'printf "LAYOUT=%s|%s|%s\\n" "$INSTALL_DIR" "$ROOT_FHS_LAYOUT" "${UV_PYTHON_INSTALL_DIR:-}"\n', *args)
+    assert result.returncode == 0, result.stderr
+    expected = {"fresh": "/usr/local/lib/hermes-agent|true|",
+                "legacy": f"{selected}/hermes-agent|false|",
+                "explicit": f"{tmp_path}/chosen|false|"}
+    assert f"LAYOUT={expected[layout]}" in result.stdout
+
+
+@pytest.mark.freebsd_only
 def test_completion_explains_cli_only_instead_of_node_repair(tmp_path):
     result = shell(tmp_path, 'detect_os\nHAS_NODE=false\nprint_success\n')
     assert result.returncode == 0, result.stderr
@@ -373,3 +391,33 @@ def test_installer_is_directly_executable_on_freebsd(tmp_path):
     except FileNotFoundError as exc:
         pytest.fail(f"installer requires an unavailable shell: {exc}")
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.freebsd_only
+@pytest.mark.parametrize("package_result", [0, 1])
+def test_node_provisioning_uses_native_packages_not_downloads(tmp_path, blocked_commands, package_result):
+    result = shell(tmp_path,
+                   'detect_os\nensure_freebsd_packages() { printf "PACKAGES=%s\\n" "$*"; return '
+                   + str(package_result) + '; }\ninstall_node\nprintf "HAS_NODE=%s\\n" "$HAS_NODE"\n',
+                   env=blocked_commands)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PACKAGES=node24 npm-node24" in result.stdout
+    assert f"HAS_NODE={'true' if package_result == 0 else 'false'}" in result.stdout
+    assert not Path(blocked_commands["CALLS"]).exists()
+
+
+@pytest.mark.freebsd_only
+@pytest.mark.parametrize("dependency,missing_node", [("node", False), ("browser", False), ("browser", True)])
+def test_optional_native_setup_never_downloads_foreign_binaries(tmp_path, dependency, missing_node):
+    probe = 'check_node() { HAS_NODE=false; };\n' if missing_node else ''
+    result = shell(tmp_path,
+                   'curl() { return 91; }; npm() { return 91; }; npx() { return 91; }\n' + probe + 'ensure_mode\n',
+                   "--ensure", dependency)
+    assert result.returncode == 0, result.stdout + result.stderr
+    if dependency == "browser":
+        assert "pkg install chromium" in result.stdout
+        assert "AGENT_BROWSER_EXECUTABLE_PATH" in result.stdout
+        assert "manual" in result.stdout.lower()
+    else:
+        assert "Native Node.js" in result.stdout
+    assert not (tmp_path / "home/.hermes/node").exists()

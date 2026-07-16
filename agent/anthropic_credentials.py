@@ -457,6 +457,7 @@ def resolve_anthropic_token() -> Optional[str]:
 
 def run_oauth_setup_token() -> Optional[str]:
     """Run 'claude setup-token' interactively; the resulting token or None. FileNotFoundError if no 'claude' CLI."""
+    import errno
     import shutil
     claude_path = shutil.which("claude")
     if not claude_path:
@@ -465,6 +466,17 @@ def run_oauth_setup_token() -> Optional[str]:
     try:
         subprocess.run([claude_path, "setup-token"])
     except (KeyboardInterrupt, EOFError):
+        return None
+    except OSError as e:
+        if e.errno != errno.ENOEXEC:
+            raise
+        # Adapted from macosxgeek's PR #33487: an incompatible executable
+        # must return control to the caller's manual authentication flow.
+        print()
+        print(f"  Cannot execute '{claude_path}' on this platform.")
+        print("  To get a setup-token, run this on a supported machine:")
+        print("    claude setup-token")
+        print("  Then enter the token in the manual authentication prompt.")
         return None
     creds = read_claude_code_credentials()
     if creds and is_claude_code_token_valid(creds):

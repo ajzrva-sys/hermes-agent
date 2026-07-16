@@ -66,7 +66,7 @@ bash "$HOME/.hermes/hermes-agent/scripts/install.sh" \
 ```
 
 The installer provisions native `uv`, `python312`, the separate `py312-sqlite3`
-package, and build dependencies. Compilation can take several minutes. Add
+package, build dependencies, and optional native Node/npm. Compilation can take several minutes. Add
 `~/.local/bin` to your shell's `PATH`, then use `hermes` to start the CLI.
 
 Check or update this installation with:
@@ -76,9 +76,15 @@ Check or update this installation with:
 "$HOME/.local/bin/hermes" update --branch feat/freebsd-install
 ```
 
-The automated FreeBSD path skips local browser automation, Computer Use,
-desktop/TUI dependencies, and gateway service setup. Keep system Python, uv,
-and SQLite packages current through `pkg`.
+Fresh root installs can use `/usr/local/lib/hermes-agent` and `/usr/local/bin`;
+existing and explicitly selected checkouts are preserved. Developer checkouts
+can use `bash setup-hermes.sh --skip-setup` without changing their Git branch.
+
+The automated path skips foreign browser downloads, Computer Use, desktop/TUI
+dependencies, and service setup. The guide includes optional system-Chromium and
+manual rc.d instructions adapted from [macosxgeek's PR #33487](https://github.com/NousResearch/hermes-agent/pull/33487),
+plus headless-dashboard and incompatible-Claude-binary handling. Keep system
+Python, uv, Node, and SQLite packages current through `pkg`.
 
 See the [FreeBSD installation guide](website/docs/getting-started/installation.md#freebsd-native-cli-experimental)
 for custom paths, dependency compatibility, verification, and limitations.

@@ -427,10 +427,10 @@ resolve_install_layout() {
         return 0
     fi
 
-    # Root on Linux: prefer FHS layout unless a legacy install already exists.
+    # Root on Linux/FreeBSD: prefer FHS layout unless a legacy install already exists.
     # macOS root installs keep the legacy layout because /usr/local/ on macOS
     # is Homebrew territory and we don't want to fight that.
-    if [ "$OS" = "linux" ] && [ "$(id -u)" -eq 0 ]; then
+    if { [ "$OS" = "linux" ] || [ "$OS" = "freebsd" ]; } && [ "$(id -u)" -eq 0 ]; then
         if [ -d "$HERMES_HOME/hermes-agent/.git" ]; then
             INSTALL_DIR="$HERMES_HOME/hermes-agent"
             log_info "Existing install detected at $INSTALL_DIR — keeping legacy layout"
@@ -444,13 +444,16 @@ resolve_install_layout() {
         # which non-root users can't traverse — leaving the shared
         # /usr/local/bin/hermes wrapper unable to exec the bad-interpreter venv
         # python.  See #21457.
-        export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-/usr/local/share/uv/python}"
-        export UV_PYTHON_BIN_DIR="${UV_PYTHON_BIN_DIR:-/usr/local/share/uv/bin}"
-        log_info "Root install on Linux — using FHS layout"
+        if [ "$OS" = "linux" ]; then
+            export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-/usr/local/share/uv/python}"
+            export UV_PYTHON_BIN_DIR="${UV_PYTHON_BIN_DIR:-/usr/local/share/uv/bin}"
+            log_info "uv Python: $UV_PYTHON_INSTALL_DIR (world-readable)"
+        fi
+        log_info "Root install on $OS — using FHS layout"
         log_info "  Code:    $INSTALL_DIR"
         log_info "  Command: /usr/local/bin/hermes"
         log_info "  Data:    $HERMES_HOME (unchanged)"
-        log_info "  uv Python: $UV_PYTHON_INSTALL_DIR (world-readable)"
+
         return 0
     fi
 
@@ -1059,8 +1062,15 @@ npm_supports_npmrc() {
 
 check_node() {
     if [ "$OS" = "freebsd" ]; then
-        HAS_NODE=false
-        log_info "Skipping Node.js on FreeBSD (CLI-only install)"
+        # Native pkg paths, not a leftover managed Linux/macOS binary.
+        if node_satisfies_build "$(/usr/local/bin/node --version 2>/dev/null)" \
+            && npm_supports_npmrc "$(PATH="/usr/local/bin:$PATH" /usr/local/bin/npm --version 2>/dev/null)"; then
+            HAS_NODE=true
+            export PATH="/usr/local/bin:$PATH"
+            log_success "Native Node.js and npm found"
+        else
+            install_node
+        fi
         return 0
     fi
     log_info "Checking Node.js (for browser tools)..."
@@ -1249,6 +1259,21 @@ install_node_line() {
 }
 
 install_node() {
+    # Adapted from PR #33487; retain current supported-version validation.
+    if [ "$OS" = "freebsd" ]; then
+        HAS_NODE=false
+        if (ensure_freebsd_packages node24 npm-node24) \
+            && node_satisfies_build "$(/usr/local/bin/node --version 2>/dev/null)" \
+            && npm_supports_npmrc "$(PATH="/usr/local/bin:$PATH" /usr/local/bin/npm --version 2>/dev/null)"; then
+            HAS_NODE=true
+            export PATH="/usr/local/bin:$PATH"
+            log_success "Native Node.js and npm installed via pkg"
+        else
+            log_warn "Node.js/npm unavailable; CLI remains usable"
+            log_info "Install supported packages: pkg install node24 npm-node24"
+        fi
+        return 0
+    fi
     if [ "$DISTRO" = "termux" ]; then
         log_info "Installing Node.js via pkg..."
         if pkg install -y nodejs >/dev/null; then
@@ -2794,6 +2819,7 @@ node_deps_workspace_args() {
 install_node_deps() {
     if [ "$OS" = "freebsd" ]; then
         log_info "Skipping npm, TUI, and browser dependencies on FreeBSD"
+        [ "$SKIP_BROWSER" = true ] || freebsd_browser_hint
         return 0
     fi
     if [ "$HAS_NODE" = false ]; then
@@ -3346,7 +3372,18 @@ print_success() {
     fi
 }
 
+freebsd_browser_hint() {
+    log_warn "Playwright ships no FreeBSD browser build; manual setup is required."
+    log_info "Install system Chromium: pkg install chromium"
+    log_info "Then select it explicitly: export AGENT_BROWSER_EXECUTABLE_PATH=/usr/local/bin/chromium"
+    log_info "Browser automation is optional and must be verified separately."
+}
+
 ensure_browser() {
+    if [ "$OS" = "freebsd" ]; then
+        freebsd_browser_hint
+        return 0
+    fi
     if ! command -v node >/dev/null 2>&1; then
         local node_bin="$HERMES_HOME/node/bin/node"
         if [ -x "$node_bin" ]; then
@@ -3408,8 +3445,13 @@ ensure_mode() {
         case "$dep" in
             node)
                 check_node
+                if [ "$OS" = "freebsd" ] && [ "$HAS_NODE" != true ]; then return 1; fi
                 ;;
             browser)
+                if [ "$OS" = "freebsd" ]; then
+                    ensure_browser
+                    continue
+                fi
                 check_node
                 if [ "$HAS_NODE" = true ]; then
                     ensure_browser
@@ -4053,8 +4095,7 @@ main() {
     echo "git" > "$INSTALL_DIR/.install_method"
 }
 
-# Reject unsupported explicit requests before any stage can write or download,
-# including mixed --ensure lists (e.g. ripgrep,browser).
+# Reject unsupported explicit requests before any stage can write or download.
 validate_platform_options() {
     [ "$(uname -s)" = "FreeBSD" ] || return 0
     local reason=""
@@ -4062,18 +4103,6 @@ validate_platform_options() {
         reason="FreeBSD supports CLI installs only; desktop is not supported"
     elif [ "$USE_VENV" = false ]; then
         reason="FreeBSD requires a virtual environment; omit --no-venv"
-    else
-        local dep
-        local deps=()
-        IFS=',' read -ra deps <<< "$ENSURE_DEPS"
-        for dep in "${deps[@]}"; do
-            case "$(printf '%s' "$dep" | tr -d '[:space:]')" in
-                node|browser)
-                    reason="FreeBSD CLI installs do not provision Node.js or browser automation"
-                    break
-                    ;;
-            esac
-        done
     fi
     if [ -n "$reason" ]; then
         log_error "$reason"

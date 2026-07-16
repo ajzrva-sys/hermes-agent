@@ -1001,7 +1001,10 @@ def _install_uv(target: Path) -> None:
         if not native_uv:
             raise RuntimeError("FreeBSD requires native uv: run `pkg install uv` as root, "
                                "then ensure its bin directory is on PATH")
-        # symlink_to refuses existing paths: never overwrite/follow a manual link or pkg binary.
+        # PR #33487's dangling-link repair, limited to a broken link: never
+        # overwrite a real binary or replace an existing usable manual link.
+        if target.is_symlink() and not target.exists():
+            target.unlink()
         target.symlink_to(Path(native_uv).resolve())
         return
     env = {**os.environ, "UV_UNMANAGED_INSTALL": str(target.parent),

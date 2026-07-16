@@ -24,7 +24,7 @@ def isolated_runtime(tmp_path, monkeypatch):
     return root
 
 
-@pytest.mark.parametrize("existing_link", [False, True])
+@pytest.mark.parametrize("existing_link", [False, True, "dangling"])
 def test_pkg_uv_link_never_self_updates_or_refreshes_catalog(
     monkeypatch, existing_link
 ):
@@ -35,7 +35,7 @@ def test_pkg_uv_link_never_self_updates_or_refreshes_catalog(
     target = managed_uv.managed_uv_path()
     if existing_link:
         target.parent.mkdir(parents=True)
-        target.symlink_to(native_uv)
+        target.symlink_to(native_uv if existing_link is True else target.parent / "missing-uv")
     run = subprocess.run
     forbidden = []
 

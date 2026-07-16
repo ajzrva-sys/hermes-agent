@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ============================================================================
 # Hermes Agent Setup Script
 # ============================================================================
@@ -28,6 +28,18 @@ NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+
+# Extend PR #33487's native developer setup by sharing the maintained installer
+# stages. Do not run the repository stage: a developer's branch/dirty tree is theirs.
+if [ "$(uname -s)" = "FreeBSD" ]; then
+    for arg in "$@"; do
+        case "$arg" in -h|--help) exec bash "$SCRIPT_DIR/scripts/install.sh" --help ;; esac
+    done
+    for stage in prerequisites venv python-deps node-deps path config setup complete; do
+        bash "$SCRIPT_DIR/scripts/install.sh" "$@" --dir "$SCRIPT_DIR" --stage "$stage" || exit $?
+    done
+    exit 0
+fi
 
 # Prevent uv from discovering config files (uv.toml, pyproject.toml) from the
 # wrong user's home directory when running under sudo -u <user>.  See #21269.

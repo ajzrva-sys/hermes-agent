@@ -39,8 +39,9 @@ PRs will be accepted to fix issues with them, but they will take precedence belo
 
 FreeBSD 15.1 amd64 has an [experimental native CLI installation path](./installation.md#freebsd-native-cli-experimental)
 in this fork. It uses packaged Python/uv and native dependency builds. This does
-not change upstream support tiers; desktop/TUI, local browser automation, and
-gateway service integration are outside the tested path.
+not change upstream support tiers. Native Node and manual system-browser/rc.d
+guidance are included; desktop/TUI, browser-backend validation and automatic rc.d
+service management remain outside the automated path.
 
 ## Unsupported
 
