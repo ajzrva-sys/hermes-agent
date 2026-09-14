@@ -40,6 +40,49 @@ Use any model you want — [Nous Portal](https://portal.nousresearch.com), OpenR
 curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
 ```
 
+### FreeBSD (native CLI, experimental)
+
+This fork supports a native CLI installation on **FreeBSD 15.1 amd64**, tested
+with Python 3.12. It uses FreeBSD packages and native extension builds—not Linux
+emulation. This is experimental fork support, not an upstream support-tier change.
+
+As root, install the bootstrap tools:
+
+```sh
+pkg install -y bash curl git
+```
+
+For a **new installation**, run the following as the account that will use
+Hermes. Missing system packages require root or working `sudo`; otherwise the
+installer prints the command for an administrator. Clone this fork first—the
+upstream quick-install URL does not include this branch:
+
+```sh
+git clone --branch feat/freebsd-install \
+  https://github.com/ajzrva-sys/hermes-agent.git "$HOME/.hermes/hermes-agent"
+bash "$HOME/.hermes/hermes-agent/scripts/install.sh" \
+  --dir "$HOME/.hermes/hermes-agent" --branch feat/freebsd-install --skip-setup
+"$HOME/.local/bin/hermes" model
+```
+
+The installer provisions native `uv`, `python312`, the separate `py312-sqlite3`
+package, and build dependencies. Compilation can take several minutes. Add
+`~/.local/bin` to your shell's `PATH`, then use `hermes` to start the CLI.
+
+Check or update this installation with:
+
+```sh
+"$HOME/.local/bin/hermes" doctor
+"$HOME/.local/bin/hermes" update --branch feat/freebsd-install
+```
+
+The automated FreeBSD path skips local browser automation, Computer Use,
+desktop/TUI dependencies, and gateway service setup. Keep system Python, uv,
+and SQLite packages current through `pkg`.
+
+See the [FreeBSD installation guide](website/docs/getting-started/installation.md#freebsd-native-cli-experimental)
+for custom paths, dependency compatibility, verification, and limitations.
+
 ### Windows (native, PowerShell)
 
 > **Heads up:** Native Windows runs Hermes without WSL — CLI, gateway, TUI, and tools all work natively. If you'd rather use WSL2, the Linux/macOS one-liner above works there too. Found a bug? Please [file issues](https://github.com/NousResearch/hermes-agent/issues).
@@ -162,11 +205,12 @@ For the full command lists, see the [CLI guide](https://hermes-agent.nousresearc
 
 ## Documentation
 
-All documentation lives at **[hermes-agent.nousresearch.com/docs](https://hermes-agent.nousresearch.com/docs/)**:
+General documentation lives at **[hermes-agent.nousresearch.com/docs](https://hermes-agent.nousresearch.com/docs/)**; this fork's FreeBSD guide is linked below:
 
 | Section                                                                                             | What's Covered                                             |
 | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | [Quickstart](https://hermes-agent.nousresearch.com/docs/getting-started/quickstart)                 | Install → setup → first conversation in 2 minutes          |
+| [FreeBSD CLI](website/docs/getting-started/installation.md#freebsd-native-cli-experimental)       | Native fork installation, updates, dependencies, limitations |
 | [CLI Usage](https://hermes-agent.nousresearch.com/docs/user-guide/cli)                              | Commands, keybindings, personalities, sessions             |
 | [Configuration](https://hermes-agent.nousresearch.com/docs/user-guide/configuration)                | Config file, providers, models, all options                |
 | [Messaging Gateway](https://hermes-agent.nousresearch.com/docs/user-guide/messaging)                | Telegram, Discord, Slack, WhatsApp, Signal, Home Assistant |
