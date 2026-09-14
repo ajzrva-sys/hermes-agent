@@ -610,13 +610,25 @@ def _repair_venv_on_current_checkout(
     _write_update_incomplete_marker()
     from hermes_cli.managed_uv import ensure_uv
     repair_uv = ensure_uv()
+    repair_prefix, repair_env = _pip_install_prefix(repair_uv)
     # Venv gone entirely (repair interrupted after the old one was moved aside): recreate.
-    venv_python_missing = not (
-        venv_python_path(_m().PROJECT_ROOT / "venv", windows=_m()._is_windows())).exists()
+    repair_venv = _m().PROJECT_ROOT / "venv"
+    native_freebsd = sys.platform.startswith("freebsd")
+    if native_freebsd:
+        from hermes_cli.managed_uv import _default_live_venv
+        repair_venv = _default_live_venv(_m().PROJECT_ROOT)
+    venv_python_missing = not venv_python_path(repair_venv, windows=_m()._is_windows()).exists()
     if venv_python_missing and repair_uv:
         print("→ Recreating virtual environment...")
-        subprocess.run([repair_uv, "venv", "venv"], cwd=_m().PROJECT_ROOT, check=False)
-    repair_prefix, repair_env = _pip_install_prefix(repair_uv)
+        if native_freebsd:
+            import tomllib
+            project = tomllib.loads((_m().PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+            subprocess.run(
+                [repair_uv, "venv", str(repair_venv), "--python", project["project"]["requires-python"],
+                 "--no-managed-python", "--no-python-downloads"],
+                cwd=_m().PROJECT_ROOT, env=repair_env, check=True)
+        else:
+            subprocess.run([repair_uv, "venv", "venv"], cwd=_m().PROJECT_ROOT, check=False)
     _m()._install_python_dependencies_with_optional_fallback(repair_prefix, env=repair_env, group="all")
     _m()._refresh_active_lazy_features(repair_prefix, env=repair_env, features=active_lazy_features)
     _m()._restore_active_tool_dependencies(active_tool_dependencies, repair_prefix, env=repair_env)
@@ -654,7 +666,27 @@ def _pip_install_prefix(uv_bin) -> tuple[list[str], dict | None]:
         from hermes_cli.managed_uv import managed_python_env
         env = managed_python_env()
         env["VIRTUAL_ENV"] = str(_m().PROJECT_ROOT / "venv")
+        if sys.platform.startswith("freebsd"):
+            from hermes_cli.managed_uv import _default_live_venv
+            # pkg owns Python. Keep project dependency policy, not a foreign uv config,
+            # and never let uv resolve/download a managed interpreter for this venv.
+            for key in ("UV_MANAGED_PYTHON", "UV_PYTHON_INSTALL_DIR", "UV_NO_CONFIG", "UV_CONFIG_FILE"):
+                env.pop(key, None)
+            live = _default_live_venv(_m().PROJECT_ROOT)
+            # An absent XDG file still falls back to /etc (pkg uv uses /usr/local/etc).
+            # Supply a real empty config in our cache; retain project policy without
+            # inheriting ambient user/system policy or leaking temporary directories.
+            from utils import atomic_write_text
+            isolated_config = get_hermes_home() / "cache" / "uv-config"
+            atomic_write_text(isolated_config / "uv" / "uv.toml", "", mode=0o600)
+            env.update({"UV_NO_MANAGED_PYTHON": "1", "UV_PYTHON_DOWNLOADS": "never",
+                        "XDG_CONFIG_HOME": str(isolated_config), "XDG_CONFIG_DIRS": str(isolated_config),
+                        "VIRTUAL_ENV": str(live),
+                        "UV_PYTHON": str(venv_python_path(live, windows=False))})
         return [uv_bin, "pip"], env
+    if sys.platform.startswith("freebsd"):
+        print("✗ FreeBSD updates require native uv. Run `pkg install uv` as root, then retry.")
+        sys.exit(1)
     return [sys.executable, "-m", "pip"], None
 
 
@@ -1250,7 +1282,8 @@ def _apply_pulled_update(
         _windows_gateway_resume=_windows_gateway_resume)
 
     node_failures = _update_node_dependencies()
-    _m()._build_web_ui(_m().PROJECT_ROOT / "web")
+    if not sys.platform.startswith("freebsd"):
+        _m()._build_web_ui(_m().PROJECT_ROOT / "web")
     desktop_build_ok = _rebuild_desktop_after_update(
         desktop_dir, had_desktop_app_before_update=had_desktop_app_before_update)
 

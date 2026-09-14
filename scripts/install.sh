@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ============================================================================
 # Hermes Agent Installer
 # ============================================================================
-# Installation script for Linux, macOS, and Android/Termux.
+# Installation script for Linux, macOS, FreeBSD (CLI), and Android/Termux.
 # Uses uv for desktop/server installs and Python's stdlib venv + pip on Termux.
 #
 # Usage:
@@ -210,6 +210,10 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# The selected home must reach config/skills Python subprocesses even when the
+# caller did not already export HERMES_HOME.
+export HERMES_HOME
 
 # ============================================================================
 # Helper functions
@@ -532,6 +536,12 @@ detect_os() {
             OS="macos"
             DISTRO="macos"
             ;;
+        FreeBSD*)
+            OS="freebsd"
+            DISTRO="freebsd"
+            # Astral's managed Python distributions are not native FreeBSD.
+            export UV_PYTHON_DOWNLOADS=never
+            ;;
         CYGWIN*|MINGW*|MSYS*)
             OS="windows"
             DISTRO="windows"
@@ -553,7 +563,43 @@ detect_os() {
 # Dependency checks
 # ============================================================================
 
+ensure_freebsd_packages() {
+    local package
+    local missing=()
+    for package in "$@"; do
+        pkg info -e "$package" >/dev/null 2>&1 || missing+=("$package")
+    done
+    [ "${#missing[@]}" -gt 0 ] || return 0
+
+    log_info "Required FreeBSD packages: ${missing[*]}"
+    local privilege=()
+    if [ "$(id -u)" -ne 0 ]; then
+        if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+            privilege=(sudo -n)
+        else
+            log_error "Ask an administrator to run: pkg install -y ${missing[*]}"
+            exit 1
+        fi
+    fi
+    if ! "${privilege[@]}" pkg install -y "${missing[@]}"; then
+        log_error "Required FreeBSD packages failed to install: ${missing[*]}"
+        exit 1
+    fi
+}
+
 install_uv() {
+    if [ "$OS" = "freebsd" ]; then
+        ensure_freebsd_packages uv
+        UV_CMD="$HERMES_HOME/bin/uv"
+        if ! /usr/local/bin/uv --version; then
+            log_error "Native /usr/local/bin/uv is unavailable; install it with pkg install uv"
+            exit 1
+        fi
+        mkdir -p "$HERMES_HOME/bin"
+        ln -sf /usr/local/bin/uv "$UV_CMD"
+        log_success "Using native pkg uv at $UV_CMD"
+        return 0
+    fi
     if [ "$DISTRO" = "termux" ]; then
         log_info "Termux detected — using Python's stdlib venv + pip instead of uv"
         UV_CMD=""
@@ -617,6 +663,19 @@ install_uv() {
 }
 
 check_python() {
+    if [ "$OS" = "freebsd" ]; then
+        # FreeBSD splits SQLite out of the interpreter package. Import it now,
+        # before creating a venv which would otherwise fail at CLI startup.
+        ensure_freebsd_packages python312 py312-sqlite3
+        PYTHON_PATH=/usr/local/bin/python3.12
+        PYTHON_VERSION="$PYTHON_PATH"
+        if ! "$PYTHON_PATH" -c 'import sqlite3, sys; assert (3, 12) <= sys.version_info[:2] < (3, 14); sqlite3.connect(":memory:").execute("create virtual table smoke using fts5(t)")'; then
+            log_error "Native Python 3.12 with SQLite FTS5 is required (pkg install python312 py312-sqlite3)"
+            exit 1
+        fi
+        log_success "Python found: $("$PYTHON_PATH" --version) (native FreeBSD with SQLite)"
+        return 0
+    fi
     if [ "$DISTRO" = "termux" ]; then
         log_info "Checking Termux Python..."
         # Hermes currently declares requires-python >=3.11,<3.14.  Termux can
@@ -784,6 +843,10 @@ attempt_install_git() {
 check_git() {
     log_info "Checking Git..."
 
+    if [ "$OS" = "freebsd" ]; then
+        ensure_freebsd_packages git
+    fi
+
     # On fresh macOS /usr/bin/git is a stub that exits non-zero until CLT is installed.
     if command -v git &> /dev/null && git --version &> /dev/null; then
         GIT_VERSION=$(git --version | awk '{print $3}')
@@ -852,6 +915,15 @@ check_git() {
 # whether to proceed rather than aborting the whole install (unlike git,
 # which is hard-required much earlier for clone_repo).
 check_cxx_compiler() {
+    if [ "$OS" = "freebsd" ]; then
+        if ! cc --version >/dev/null 2>&1 || ! c++ --version >/dev/null 2>&1; then
+            log_error "FreeBSD needs a working C/C++ compiler; install the base development toolchain"
+            exit 1
+        fi
+        HAS_CXX_COMPILER=true
+        log_success "Native FreeBSD C/C++ compiler found"
+        return 0
+    fi
     log_info "Checking for a C++ compiler (needed to build native Node modules like node-pty)..."
 
     if command -v g++ &> /dev/null || command -v clang++ &> /dev/null; then
@@ -986,6 +1058,11 @@ npm_supports_npmrc() {
 }
 
 check_node() {
+    if [ "$OS" = "freebsd" ]; then
+        HAS_NODE=false
+        log_info "Skipping Node.js on FreeBSD (CLI-only install)"
+        return 0
+    fi
     log_info "Checking Node.js (for browser tools)..."
 
     # Repair pre-existing Hermes-managed installs where `npm install -g` lands
@@ -1293,7 +1370,23 @@ check_network_prerequisites() {
     fi
 }
 
+prepare_freebsd_build() {
+    ensure_freebsd_packages git curl rust pkgconf cmake-core gmake libffi \
+        jpeg-turbo libheif freetype2 lcms2 openjpeg tiff webp
+    # Native extension builds must see ports' headers/libraries, not just base.
+    export CPPFLAGS="-I/usr/local/include ${CPPFLAGS:-}"
+    export LDFLAGS="-L/usr/local/lib ${LDFLAGS:-}"
+    export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+    # Avoid multiplying machine-wide CPU counts across simultaneous Rust/C
+    # builds. Fixed budgets also neutralize inherited unbounded build settings.
+    export CARGO_BUILD_JOBS=4 UV_CONCURRENT_BUILDS=2
+    export CMAKE_BUILD_PARALLEL_LEVEL=4 MAKEFLAGS=-j4
+}
+
 install_system_packages() {
+    if [ "$OS" = "freebsd" ]; then
+        prepare_freebsd_build
+    fi
     # Detect what's missing
     HAS_RIPGREP=false
     HAS_FFMPEG=false
@@ -1378,6 +1471,7 @@ install_system_packages() {
     # ── Linux: resolve package manager command ──
     local pkg_install=""
     case "$DISTRO" in
+        freebsd)       pkg_install="pkg install -y"   ;;
         ubuntu|debian) pkg_install="apt install -y"   ;;
         fedora)        pkg_install="dnf install -y"   ;;
         arch)          pkg_install="pacman -S --noconfirm" ;;
@@ -1477,7 +1571,7 @@ show_manual_install_hint() {
                 *)             log_info "  Use your package manager or visit the project homepage" ;;
             esac
             ;;
-        android)
+        android|freebsd)
             log_info "  pkg install $pkg"
             ;;
         macos) log_info "  brew install $pkg" ;;
@@ -1756,7 +1850,7 @@ setup_venv() {
 
     # uv creates the venv and pins the Python version in one step. Fail loudly: `set -e` does not
     # reach this line's callers on every path, and a missing venv used to be reported as ready.
-    if ! $UV_CMD venv venv --python "$PYTHON_VERSION" || [ ! -x "venv/bin/python" ]; then
+    if ! "$UV_CMD" venv venv --python "$PYTHON_VERSION" || [ ! -x "venv/bin/python" ]; then
         log_error "Failed to create the virtual environment with Python $PYTHON_VERSION"
         exit 1
     fi
@@ -1792,15 +1886,29 @@ run_locked_uv_sync() {
         unset UV_NO_CONFIG UV_CONFIG_FILE
         export XDG_CONFIG_HOME="$isolated_uv_config"
         export XDG_CONFIG_DIRS="$isolated_uv_config"
-        UV_PROJECT_ENVIRONMENT="$project_env" $UV_CMD sync --extra all --locked
+        UV_PROJECT_ENVIRONMENT="$project_env" "$UV_CMD" sync --extra all --locked
     )
     sync_rc=$?
     rmdir "$isolated_uv_config" 2>/dev/null || true
     return "$sync_rc"
 }
 
+check_freebsd_dependencies() {
+    [ "$OS" = "freebsd" ] || return 0
+    if ! "$UV_CMD" pip check --python "$INSTALL_DIR/venv/bin/python"; then
+        log_error "FreeBSD Python dependency check failed"
+        exit 1
+    fi
+}
+
 install_deps() {
     log_info "Installing dependencies..."
+
+    # Stages run in separate processes: re-establish the native build budget
+    # and library search paths here, not only in prerequisites.
+    if [ "$OS" = "freebsd" ]; then
+        prepare_freebsd_build
+    fi
 
     # Re-pin UV_PYTHON to the venv interpreter. setup_venv already does this,
     # but the bootstrap runs install stages (`venv`, `python-deps`) as separate
@@ -1951,6 +2059,7 @@ install_deps() {
         # Runtime code does the same before its locked syncs
         # (hermes_cli/managed_uv.py).
         if run_locked_uv_sync "$INSTALL_DIR/venv"; then
+            check_freebsd_dependencies
             log_success "Main package installed (hash-verified via uv.lock)"
             log_success "All dependencies installed"
             return 0
@@ -2031,7 +2140,7 @@ PY
     install_tier() {
         local name="$1"; local spec="$2"
         log_info "Trying tier: $name ..."
-        if $UV_CMD pip install -e "$spec" 2>"$ALL_INSTALL_LOG"; then
+        if "$UV_CMD" pip install -e "$spec" 2>"$ALL_INSTALL_LOG"; then
             log_success "Main package installed ($name)"
             _installed=true
             _tier_name="$name"
@@ -2054,6 +2163,8 @@ PY
         log_info "Then re-run: cd $INSTALL_DIR && uv pip install -e '.[all]'"
         exit 1
     fi
+
+    check_freebsd_dependencies
 
     if [ "$_tier_name" != "all" ]; then
         log_warn "Note: installed via fallback tier ($_tier_name)."
@@ -2318,6 +2429,14 @@ copy_config_templates() {
         if [ -f "$INSTALL_DIR/cli-config.yaml.example" ]; then
             cp "$INSTALL_DIR/cli-config.yaml.example" "$HERMES_HOME/config.yaml"
             log_success "Created ~/.hermes/config.yaml from template"
+        fi
+        if [ "$OS" = "freebsd" ]; then
+            # Only seed fresh profiles. Existing display/backend choices belong
+            # to the user, even when they refer to optional unsupported surfaces.
+            if ! "$INSTALL_DIR/venv/bin/python" -c 'from hermes_cli.config import set_config_value; set_config_value("display.interface", "cli")'; then
+                log_error "Failed to initialize FreeBSD CLI configuration"
+                exit 1
+            fi
         fi
     else
         log_info "~/.hermes/config.yaml already exists, keeping it"
@@ -2673,6 +2792,10 @@ node_deps_workspace_args() {
 }
 
 install_node_deps() {
+    if [ "$OS" = "freebsd" ]; then
+        log_info "Skipping npm, TUI, and browser dependencies on FreeBSD"
+        return 0
+    fi
     if [ "$HAS_NODE" = false ]; then
         log_info "Skipping Node.js dependencies (Node not installed)"
         return 0
@@ -2835,6 +2958,10 @@ install_node_deps() {
 }
 
 install_browser_use_cli() {
+    if [ "$OS" = "freebsd" ]; then
+        log_info "Skipping Browser Use CLI on FreeBSD"
+        return 0
+    fi
     # The Browser Use CLI is the default browser backend when it is runnable
     # (tools/browser_use_cli.py). Provision it here so fresh installs don't
     # silently fall back to the built-in browser tools. Best-effort: any
@@ -2903,6 +3030,10 @@ cua_driver_runtime_compatible() {
 }
 
 install_computer_use_driver() {
+    if [ "$OS" = "freebsd" ]; then
+        log_info "Skipping Computer Use on FreeBSD"
+        return 0
+    fi
     # cua-driver powers the computer_use toolset (background desktop control).
     # Provision it at install time so enabling the tool later — via
     # `hermes tools`, the dashboard, or the desktop app — is a config flip,
@@ -2988,6 +3119,10 @@ run_setup_wizard() {
 }
 
 maybe_start_gateway() {
+    if [ "$OS" = "freebsd" ]; then
+        log_info "Skipping gateway service setup on FreeBSD (CLI-only install)"
+        return 0
+    fi
     # Check if any messaging platform tokens were configured
     ENV_FILE="$HERMES_HOME/.env"
     if [ ! -f "$ENV_FILE" ]; then
@@ -3152,7 +3287,9 @@ print_success() {
     echo -e "   ${GREEN}hermes setup${NC}        Configure API keys & settings"
     echo -e "   ${GREEN}hermes config${NC}       View/edit configuration"
     echo -e "   ${GREEN}hermes config edit${NC}  Open config in editor"
-    echo -e "   ${GREEN}hermes gateway install${NC} Install gateway service (messaging + cron)"
+    if [ "$OS" != "freebsd" ]; then
+        echo -e "   ${GREEN}hermes gateway install${NC} Install gateway service (messaging + cron)"
+    fi
     echo -e "   ${GREEN}hermes update${NC}       Update to latest version"
     echo ""
 
@@ -3181,7 +3318,9 @@ print_success() {
     fi
 
     # Show Node.js warning if auto-install failed
-    if [ "$HAS_NODE" = false ]; then
+    if [ "$OS" = "freebsd" ]; then
+        log_info "FreeBSD CLI install: TUI, desktop, browser automation, Computer Use, and gateway service setup were skipped."
+    elif [ "$HAS_NODE" = false ]; then
         echo -e "${YELLOW}"
         echo "Note: Node.js could not be installed automatically."
         echo "Browser tools need Node.js. Install manually:"
@@ -3198,7 +3337,7 @@ print_success() {
         echo -e "${YELLOW}"
         echo "Note: ripgrep (rg) was not found. File search will use"
         echo "grep as a fallback. For faster search in large codebases,"
-        if [ "$DISTRO" = "termux" ]; then
+        if [ "$DISTRO" = "termux" ] || [ "$OS" = "freebsd" ]; then
             echo "install ripgrep: pkg install ripgrep"
         else
             echo "install ripgrep: sudo apt install ripgrep (or brew install ripgrep)"
@@ -3820,6 +3959,18 @@ run_stage_body() {
 
 run_stage_protocol() {
     local stage="$1"
+    if [ "$(uname -s)" = "FreeBSD" ]; then
+        case "$stage" in
+            node-deps|gateway)
+                local reason="FreeBSD CLI-only install"
+                log_info "Skipping $stage ($reason)"
+                if [ "$JSON_OUTPUT" = true ]; then
+                    emit_stage_json "$stage" true true "$reason"
+                fi
+                return 0
+                ;;
+        esac
+    fi
     if [ -z "$stage" ]; then
         log_error "--stage requires a stage name"
         if [ "$JSON_OUTPUT" = true ]; then
@@ -3901,6 +4052,39 @@ main() {
     # See detect_install_method().
     echo "git" > "$INSTALL_DIR/.install_method"
 }
+
+# Reject unsupported explicit requests before any stage can write or download,
+# including mixed --ensure lists (e.g. ripgrep,browser).
+validate_platform_options() {
+    [ "$(uname -s)" = "FreeBSD" ] || return 0
+    local reason=""
+    if [ "$INCLUDE_DESKTOP" = true ] || [ "$STAGE_NAME" = desktop ]; then
+        reason="FreeBSD supports CLI installs only; desktop is not supported"
+    elif [ "$USE_VENV" = false ]; then
+        reason="FreeBSD requires a virtual environment; omit --no-venv"
+    else
+        local dep
+        local deps=()
+        IFS=',' read -ra deps <<< "$ENSURE_DEPS"
+        for dep in "${deps[@]}"; do
+            case "$(printf '%s' "$dep" | tr -d '[:space:]')" in
+                node|browser)
+                    reason="FreeBSD CLI installs do not provision Node.js or browser automation"
+                    break
+                    ;;
+            esac
+        done
+    fi
+    if [ -n "$reason" ]; then
+        log_error "$reason"
+        if [ "$JSON_OUTPUT" = true ] && [ -n "$STAGE_NAME" ]; then
+            emit_stage_json "$STAGE_NAME" false false "$reason"
+        fi
+        exit 1
+    fi
+}
+
+validate_platform_options
 
 if [ "$MANIFEST_MODE" = true ]; then
     emit_manifest

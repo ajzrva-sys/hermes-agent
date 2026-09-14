@@ -523,7 +523,8 @@ def _repair_node_deps_on_current_checkout(
         print_completion("⚠ Checkout is current, but Node.js dependencies could not be repaired.")
         return False
     # Pair with the web build like every other call site; it staleness-checks internally.
-    _m()._build_web_ui(_m().PROJECT_ROOT / "web")
+    if not sys.platform.startswith("freebsd"):
+        _m()._build_web_ui(_m().PROJECT_ROOT / "web")
     _check_and_apply_config_migration(
         assume_yes=assume_yes, gateway_mode=gateway_mode, pre_update_snapshot_id=pre_update_snapshot_id)
     # A current checkout can still owe a Desktop rebuild (e.g. the Windows hand-off child
@@ -547,6 +548,12 @@ def _update_node_dependencies() -> list[str]:
     See #30271.
     """
     from hermes_cli.update_cmd import _m
+    if sys.platform.startswith("freebsd"):
+        from hermes_cli.update_receipt import record_skip
+        reason = "FreeBSD CLI-only updates do not install browser, TUI, web or Desktop runtimes"
+        print(f"  ℹ {reason}.")
+        record_skip("node_dependencies", reason)
+        return []
     if not (_m().PROJECT_ROOT / "package.json").exists():
         return []
 
@@ -818,6 +825,8 @@ def _rebuild_desktop_after_update(
     See #88251.
     """
     from hermes_cli.update_cmd import _m
+    if sys.platform.startswith("freebsd"):
+        return True
     # The release tree is git-ignored and can vanish mid-update; pre-update presence suffices.
     # Never make people who never used Desktop pay for an Electron build.
     has_desktop_app = had_desktop_app_before_update or _desktop_app_present(desktop_dir)
@@ -987,9 +996,9 @@ def _sync_python_dependencies_after_pull(
     update_managed_uv()
     uv_bin = ensure_uv()
     pip_cmd = [sys.executable, "-m", "pip"]
-    if not uv_bin:
+    if not uv_bin and not sys.platform.startswith("freebsd"):
         uv_bin = _ensure_uv_for_termux(pip_cmd)
-    if not uv_bin:
+    if not uv_bin and not sys.platform.startswith("freebsd"):
         _ensure_venv_pip(pip_cmd, sys.executable)
     install_prefix, lazy_env = _pip_install_prefix(uv_bin)
     install_group = "all"

@@ -1125,6 +1125,7 @@ _ALLOW_MACOS_KEYCHAIN_MARK = "allow_macos_keychain"
 #   @pytest.mark.windows_only   → only on native Windows (``sys.platform == "win32"``)
 #   @pytest.mark.macos_only     → only on macOS (``sys.platform == "darwin"``)
 #   @pytest.mark.linux_only     → only on Linux (``sys.platform.startswith("linux")``)
+#   @pytest.mark.freebsd_only   → only on FreeBSD (``sys.platform.startswith("freebsd")``)
 #
 # Elsewhere the test is skipped, not faked. CI runs a dedicated macOS job
 # (``-m macos_only``) and a dedicated Windows job (``-m windows_only``) so
@@ -1148,6 +1149,10 @@ _ALLOW_MACOS_KEYCHAIN_MARK = "allow_macos_keychain"
 # ---------------------------------------------------------------------------
 
 _OS_MARKS = {
+    "freebsd_only": (
+        lambda: sys.platform.startswith("freebsd"),
+        "FreeBSD",
+    ),
     "linux_only": (
         lambda: sys.platform.startswith("linux"),
         "Linux",
@@ -1211,7 +1216,7 @@ def pytest_configure(config):  # noqa: D401 — pytest hook
         "dispatcher's memory guard to 'no data' — only for tests that "
         "exercise the guard itself with their own patched samples.",
     )
-    # NOTE: linux_only / macos_only / windows_only are declared in
+    # NOTE: linux_only / macos_only / windows_only / freebsd_only are declared in
     # pyproject.toml's ``markers`` list, not here — they are part of the
     # project's public marker vocabulary (``pytest --markers``, and the CI
     # lanes select on them), whereas the marks above are conftest-internal

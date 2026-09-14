@@ -35,6 +35,13 @@ PRs will be accepted to fix issues with them, but they will take precedence belo
 | **Android (Termux)** (aarch64) | [`install.sh`](./installation.md#linux--macos--wsl2--android-termux) | A few features are [not available](./termux.md#known-limitations-on-phones). |
 | **Nix** (MacOS, Linux, NixOS)  | [`install.sh`](./nix-setup.md)                                       | Breaks often due to node.js packaging woes. Best of luck~! &lt;3             |
 
+## Experimental native CLI in this fork
+
+FreeBSD 15.1 amd64 has an [experimental native CLI installation path](./installation.md#freebsd-native-cli-experimental)
+in this fork. It uses packaged Python/uv and native dependency builds. This does
+not change upstream support tiers; desktop/TUI, local browser automation, and
+gateway service integration are outside the tested path.
+
 ## Unsupported
 
 These platforms and distribution methods are **not** supported.

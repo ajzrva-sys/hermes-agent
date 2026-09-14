@@ -3,6 +3,38 @@
 from pathlib import Path
 import tomllib
 
+
+def test_freebsd_heif_dependency_builds_with_packaged_libheif():
+    """libheif 1.22 cannot build pillow-heif 1.5+, even though wheels work elsewhere."""
+    from packaging.requirements import Requirement
+
+    with (Path(__file__).resolve().parents[1] / "pyproject.toml").open("rb") as handle:
+        requirements = [Requirement(spec) for spec in tomllib.load(handle)["project"]["dependencies"]]
+    heif = [req for req in requirements if req.name == "pillow-heif"]
+    for system in ("FreeBSD", "Linux", "Darwin", "Windows"):
+        matching = [req for req in heif if req.marker is None or req.marker.evaluate(
+            {"platform_system": system})]
+        assert len(matching) == 1, f"Ambiguous or missing HEIF dependency for {system}"
+        assert "1.4.0" in matching[0].specifier
+        assert ("1.5.0" in matching[0].specifier) is (system != "FreeBSD")
+
+def test_uv_overrides_preserve_exact_core_requirements():
+    """An override must not make a successful install violate the core dependency pin."""
+    from packaging.requirements import Requirement
+
+    with (Path(__file__).resolve().parents[1] / "pyproject.toml").open("rb") as handle:
+        data = tomllib.load(handle)
+    core = [Requirement(spec) for spec in data["project"]["dependencies"]]
+    exact_core = {
+        req.name: req.specifier for req in core
+        if any(pin.operator == "==" for pin in req.specifier)
+    }
+    for spec in data["tool"]["uv"]["override-dependencies"]:
+        override = Requirement(spec)
+        if override.name in exact_core:
+            assert override.specifier == exact_core[override.name]
+
+
 def _load_optional_dependencies():
     pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
     with pyproject_path.open("rb") as handle:

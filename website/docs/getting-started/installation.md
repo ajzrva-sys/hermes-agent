@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: "Installation"
-description: "Install Hermes Agent on Linux, macOS, WSL2, native Windows, or Android via Termux"
+description: "Install Hermes Agent on Linux, macOS, WSL2, native Windows, Android via Termux, or experimental FreeBSD CLI"
 ---
 
 # Installation
@@ -19,6 +19,8 @@ To easily install the command-line and desktop applications, [download the Herme
 
 ### Without Hermes Desktop:
 For a command-line only install without Hermes Desktop, run:
+
+FreeBSD users should follow the [native CLI instructions](#freebsd-native-cli-experimental) below instead of the quick-install URL.
 
 #### Linux / macOS / WSL2 / Android (Termux)
 ```bash
@@ -105,6 +107,78 @@ You do **not** need to install Python, Node.js, ripgrep, or ffmpeg manually. The
 :::tip Nix users
 Nix is **no longer an explicitly supported install path** (best-effort only). If you already use Nix (on NixOS, macOS, or Linux), there's a dedicated setup path with a Nix flake, declarative NixOS module, and optional container mode. See the **[Nix & NixOS Setup](./nix-setup.md)** guide.
 :::
+
+---
+
+## FreeBSD native CLI (experimental)
+
+This fork includes a native FreeBSD CLI installation path. It uses FreeBSD
+packages and compiles Python extensions locally; it does not run Linux binaries
+through the Linuxulator. The initial target is FreeBSD 15.1 amd64 with Python 3.12.
+This is experimental support, not an upstream Tier 1 or Tier 2 commitment.
+
+As an administrator, install the bootstrap tools:
+
+```sh
+pkg install -y bash curl git
+```
+
+Run the installer as the account that will use Hermes. Missing system packages
+require root or working `sudo`; otherwise the installer prints the `pkg` command
+for an administrator rather than falling back to foreign binaries. Native Rust
+and image-library dependencies can take several minutes to install and compile.
+
+Until this branch is merged, clone the fork first so the installer uses its
+existing remote and branch. These commands are for a **new** installation; do not
+clone over an existing checkout:
+
+```sh
+git clone --branch feat/freebsd-install \
+  https://github.com/ajzrva-sys/hermes-agent.git "$HOME/.hermes/hermes-agent"
+bash "$HOME/.hermes/hermes-agent/scripts/install.sh" \
+  --dir "$HOME/.hermes/hermes-agent" --branch feat/freebsd-install --skip-setup
+"$HOME/.local/bin/hermes" model
+```
+
+Use `bash scripts/install.sh`, not `/bin/bash`: packaged Bash lives under
+`/usr/local/bin` on FreeBSD. The default layout is per-user even when invoked as
+root. Code and its venv live in `~/.hermes/hermes-agent`, configuration and sessions
+in `~/.hermes`, and launchers in `~/.local/bin`. `--dir` and `--hermes-home` can
+select another installation/data location. Add `~/.local/bin` to your shell's
+`PATH` if needed.
+When using a custom data location, also set `HERMES_HOME` to that location when
+launching Hermes; the launcher does not permanently bind itself to one profile.
+
+### Native dependencies and updates
+
+- Python comes from `python312`, with `py312-sqlite3` installed separately.
+  Without that split package, even CLI startup fails importing `_sqlite3`.
+- Hermes uses native `uv` from `pkg`. Its private uv lookup resolves that binary;
+  neither the installer nor updater replaces it using Astral's binary downloads.
+  Upgrade the system Python, uv, and SQLite packages through FreeBSD's package manager.
+- The dependency metadata restricts `pillow-heif` to the version range compatible
+  with packaged libheif 1.22. Other platforms retain their existing wheel-backed
+  dependency range. The same markers apply during installation and dependency repair.
+- The reviewed `uv.lock` is used for installation. Native source builds replace
+  unavailable FreeBSD wheels; do not substitute packages with `--no-deps`.
+- For this fork branch, update with `hermes update --branch feat/freebsd-install`.
+  Keep system packages current and run `hermes doctor` afterward. A vulnerable
+  system SQLite build requires a package update, not a managed-Python download.
+
+Verify the installed environment:
+
+```sh
+hermes --version
+hermes doctor
+uv pip check --python "$HOME/.hermes/hermes-agent/venv/bin/python"
+```
+
+The automated FreeBSD path is CLI-only: it skips local browser downloads,
+Computer Use, Node UI dependency installation, and gateway service setup.
+Explicit browser/desktop installation requests are rejected. Local browser
+automation, desktop/TUI, voice engines with wheel-only dependencies, and rc.d
+service integration are not part of this tested path. Provider authentication
+is separate; `hermes model` is still required before a real model response.
 
 ---
 

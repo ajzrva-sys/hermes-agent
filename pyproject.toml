@@ -154,7 +154,11 @@ dependencies = [
   # _normalize_to_supported_image can re-encode HEIF/AVIF to PNG before embed.
   # Ships prebuilt wheels bundling libheif for the common platforms (no system
   # libs needed), so it's safe in the base install alongside Pillow.
-  "pillow-heif>=1.4.0,<2",
+  # FreeBSD's packaged libheif 1.22 cannot build pillow-heif >=1.5 (requires
+  # libheif >=1.23.1). Keep this in metadata so installs, updates and lazy
+  # dependency repair agree; other platforms retain their bundled wheels.
+  "pillow-heif>=1.4.0,<1.5; platform_system == 'FreeBSD'",
+  "pillow-heif>=1.4.0,<2; platform_system != 'FreeBSD'",
   # Windows log rotation. Stdlib ``RotatingFileHandler.doRollover()`` uses
   # ``os.rename()`` which fails with ``PermissionError [WinError 32]`` on
   # Windows whenever any other process holds an append-mode handle on
@@ -426,8 +430,10 @@ override-dependencies = [
   # and its three advisories (see the cryptography pin in
   # [project].dependencies). The package uses cryptography only to sign
   # requests with RSA and AES, and that API did not break in 49 or 50.
+  # Match the core exact pin: an override also replaces our own requirement,
+  # so a range can produce an installation that fails `uv pip check`.
   # Remove this line when alibabacloud-tea-openapi lifts the cap.
-  "cryptography>=50,<51",
+  "cryptography==50.0.0",
 ]
 exclude-newer = "14 days"
 # h2: temporary exclude-newer exception for the CVE-2026-71554 (GHSA-6hr6-w5qg-qmwg,
@@ -614,6 +620,7 @@ markers = [
     "linux_only: exercises Linux-specific behaviour; skipped on other hosts",
     "macos_only: exercises macOS-specific behaviour; skipped on other hosts",
     "windows_only: exercises native-Windows behaviour; skipped on other hosts",
+    "freebsd_only: exercises native-FreeBSD behaviour; skipped on other hosts",
 ]
 # integration tests take way too long to run in the normal CI environments
 addopts = "-m 'not integration'"

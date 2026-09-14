@@ -1168,8 +1168,13 @@ def _verify_core_dependencies_installed(
         return
     # Last-ditch: install each remaining missing dep with its pin directly — uv's
     # resolver can think the env is satisfied while on-disk metadata disagrees.
-    name_to_spec = dict(_naive_requirement(spec) for spec in raw_deps)
-    specs = [name_to_spec.get(n, n) for n in still_missing]
+    # A package can have disjoint platform pins. Keep every original spec,
+    # including its marker, so pip/uv selects the target platform's pin rather
+    # than a marker-stripped, last-declaration-wins requirement.
+    name_to_specs: dict[str, list[str]] = {}
+    for spec in raw_deps:
+        name_to_specs.setdefault(_naive_requirement(spec)[0], []).append(spec)
+    specs = [spec for name in still_missing for spec in name_to_specs.get(name, [name])]
     print(f"  → Force-installing remaining missing dep(s): {', '.join(specs)}")
     if not _run_repair_step(
         _run_install_with_heartbeat, install_cmd_prefix + ["install", "--reinstall", *specs],

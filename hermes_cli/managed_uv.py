@@ -41,7 +41,7 @@ _Provisioned = tuple[Path, Path, SQLiteRuntimeInfo]
 
 
 def managed_uv_path() -> Path:
-    """Path of Hermes' own uv binary (``$HERMES_HOME/bin/uv[.exe]``); may not exist yet."""
+    """Hermes uv path (``$HERMES_HOME/bin/uv[.exe]``); FreeBSD links the native pkg binary."""
     return get_hermes_home() / "bin" / ("uv.exe" if platform.system() == "Windows" else "uv")
 
 
@@ -270,7 +270,8 @@ def update_managed_uv(
     if not existing:
         # Not installed yet — ensure_uv() will handle that elsewhere.
         return None
-    if force or not _uv_self_update_is_fresh():
+    # FreeBSD's native binary belongs to pkg, including manual links into HERMES_HOME.
+    if platform.system() != "FreeBSD" and (force or not _uv_self_update_is_fresh()):
         try:
             result = subprocess.run(
                 [existing, "self", "update"], capture_output=True,
@@ -798,6 +799,9 @@ def _refresh_managed_uv_catalog(uv_bin: str) -> bool:
     patch-retry loop cannot recover from that: the fixed build carries no newer version number to retry
     with.
     """
+    if platform.system() == "FreeBSD":
+        print("  ℹ FreeBSD uv is managed by pkg; run `pkg upgrade uv` as root.")
+        return False
     managed = managed_uv_path()
     try:
         if Path(uv_bin).resolve() != managed.resolve():
@@ -961,6 +965,15 @@ def repair_vulnerable_runtime(
         # See #73109.
         _sweep_stale_runtime_backups(live, root=root)
         return _result("safe", current, sqlite_after=current.sqlite_version_string)
+    if platform.system() == "FreeBSD":
+        minor = "".join(str(part) for part in current.python_version[:2])
+        detail = ("FreeBSD Python/SQLite are managed by pkg; run "
+                  f"`pkg upgrade sqlite3 python{minor} py{minor}-sqlite3` as root, "
+                  "then restart Hermes and retry `hermes update`")
+        print(f"  ⚠ SQLite {current.sqlite_version_string} runtime repair deferred: {detail}.")
+        print("    Sessions stay protected meanwhile: Hermes keeps databases out of WAL mode "
+              "on this SQLite build.")
+        return _result("skipped", current, detail)
     deferred = _repair_windows_preflight(root, live, current)
     if deferred is not None:
         return deferred
@@ -978,11 +991,19 @@ def repair_vulnerable_runtime(
 
 
 def _install_uv(target: Path) -> None:
-    """Bootstrap uv into *target* using the official standalone installer.
+    """Link native pkg uv on FreeBSD; elsewhere bootstrap with the standalone installer.
 
     Sets ``UV_UNMANAGED_INSTALL`` (POSIX) / ``UV_INSTALL_DIR`` (Windows) so the installer writes
     into ``$HERMES_HOME/bin/`` instead of ``~/.local/bin/``.
     """
+    if platform.system() == "FreeBSD":
+        native_uv = shutil.which("uv")
+        if not native_uv:
+            raise RuntimeError("FreeBSD requires native uv: run `pkg install uv` as root, "
+                               "then ensure its bin directory is on PATH")
+        # symlink_to refuses existing paths: never overwrite/follow a manual link or pkg binary.
+        target.symlink_to(Path(native_uv).resolve())
+        return
     env = {**os.environ, "UV_UNMANAGED_INSTALL": str(target.parent),
            "UV_INSTALL_DIR": str(target.parent)}
     (_install_uv_windows if platform.system() == "Windows" else _install_uv_posix)(env)

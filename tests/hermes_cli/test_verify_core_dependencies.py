@@ -125,6 +125,38 @@ class TestVerifyCoreDependencies:
 
 
 
+def test_per_package_repair_preserves_disjoint_requirement_markers(tmp_path, monkeypatch):
+    """Repeated package names must not replace the applicable pin with another platform's pin."""
+    import json
+    from packaging.requirements import Requirement
+    from hermes_cli import main, main_install_repair as repair
+
+    specs = [
+        "fixture-core<2; python_version >= '3.11'",
+        "fixture-core>=2; python_version < '3.11'",
+    ]
+    (tmp_path / "pyproject.toml").write_text(
+        "[project]\ndependencies = " + json.dumps(specs) + "\n", encoding="utf-8")
+    monkeypatch.setattr(main, "PROJECT_ROOT", tmp_path)
+    missing = iter(["fixture-core\n", "fixture-core\n", ""])
+    monkeypatch.setattr(repair, "_venv_probe", lambda *a, **kw:
+                        subprocess.CompletedProcess(a, 0, stdout=next(missing)))
+    installs = []
+    monkeypatch.setattr(repair, "_run_quarantined_install", lambda *a, **kw: None)
+    monkeypatch.setattr(repair, "_run_install_with_heartbeat", lambda cmd, **kw: installs.append(cmd))
+
+    prefix = [sys.executable, "-m", "pip"]
+    repair._verify_core_dependencies_installed(prefix)
+
+    requested = installs[0][len(prefix) + 2:]
+    assert requested == specs
+    parsed = [Requirement(spec) for spec in requested]
+    applicable = [req for req in parsed if req.marker is None or req.marker.evaluate()]
+    assert len(applicable) == 1
+    assert "1.0" in applicable[0].specifier
+    assert "2.0" not in applicable[0].specifier
+
+
 class TestResolveInstallTargetPython:
     def test_uses_virtual_env_from_environment(self, tmp_path):
         """When VIRTUAL_ENV is set, the verification step must probe THAT
