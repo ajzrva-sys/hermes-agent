@@ -15,7 +15,7 @@ Himalaya CLI: IMAP/SMTP email from terminal.
 | | |
 |---|---|
 | Source | Bundled (installed by default) |
-| Path | `skills/email\himalaya` |
+| Path | `skills/email/himalaya` |
 | Version | `1.1.0` |
 | Author | community |
 | License | MIT |
@@ -57,19 +57,52 @@ curl -sSL https://raw.githubusercontent.com/pimalaya/himalaya/master/install.sh 
 # macOS via Homebrew
 brew install himalaya
 
-# Or via cargo (any platform with Rust)
+# Or via cargo (where the native build is supported)
 cargo install himalaya --locked
 ```
 
+### FreeBSD: separate build and account gates
+
+Probe a native package first; do not run the Linux/macOS installer on
+FreeBSD. If a source build is needed, select and record an approved concrete
+release, then use `cargo install himalaya --version <selected-version>
+--locked --root "${HERMES_HOME:-$HOME/.hermes}/tools/himalaya"` as the ordinary
+user. A Rust toolchain alone does not prove the build works. Verify the
+selected absolute executable with `--version`, `--help`, `file`, and `ldd`;
+record `blocked-native-build` if it fails rather than substituting Linux code.
+
+For a user-prefix install, invoke through `terminal` without changing PATH:
+
+```sh
+HIMALAYA="${HERMES_HOME:-$HOME/.hermes}/tools/himalaya/bin/himalaya"
+"$HIMALAYA" --help
+# Only after user-owned account setup and read approval:
+"$HIMALAYA" folder list
+```
+
+Use the verified package executable instead when installed natively by the
+administrator. Replace `himalaya` in the examples below with that selected
+absolute path; do not rely on another process's PATH changes. Himalaya's
+mail config is separate from `HERMES_HOME`: confirm its actual config path
+and intended account rather than copying another profile or Mac config.
+
 ## Configuration Setup
 
-Run the interactive wizard to set up an account:
+The user runs the interactive wizard in their own terminal, not an
+agent-captured PTY, to set up the intended account:
 
 ```bash
 himalaya account configure
 ```
 
 Or create `~/.config/himalaya/config.toml` manually:
+
+Keep credentials out of chat, argv, history, and logs. Configure a supported
+user-owned secret provider using `auth.cmd` (for example an already-provisioned
+`pass` store), or a verified native keyring backend; see
+`references/configuration.md`. The agent may write non-secret settings but
+must not run the password command directly to capture its output. Missing
+secure credential handling is `blocked-auth`, not a reason to paste passwords.
 
 ```toml
 [accounts.personal]
@@ -119,7 +152,7 @@ folder.aliases.trash = "Trash"
 - **Reading, listing, searching, moving, deleting** all work directly through the terminal tool
 - **Composing/replying/forwarding** — piped input (`cat << EOF | himalaya template send`) is recommended for reliability. Interactive `$EDITOR` mode works with `pty=true` + background + process tool, but requires knowing the editor and its commands
 - Use `--output json` for structured output that's easier to parse programmatically
-- The `himalaya account configure` wizard requires interactive input — use PTY mode: `terminal(command="himalaya account configure", pty=true)`
+- The `himalaya account configure` wizard is user-owned; do not drive credential prompts through an agent-captured PTY. Confirm status with an approved folder listing afterward, not by reading credential files.
 
 ## Common Operations
 
@@ -298,6 +331,10 @@ himalaya envelope list --output plain
 ```
 
 ## Debugging
+
+Use sanitized fixtures for debug/trace logs; live mailbox logs can contain
+private message or authentication data. Do not capture a credential setup
+session or enable trace logging merely to verify authentication.
 
 Enable debug logging:
 

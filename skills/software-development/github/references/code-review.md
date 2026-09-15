@@ -4,10 +4,15 @@ Perform code reviews on local changes before pushing, or review open PRs on GitH
 
 ## Prerequisites
 
-- Authenticated with GitHub (see `github-auth` skill)
+- Authenticated with GitHub (see `references/auth.md`)
 - Inside a git repository
 
 ### Setup (for PR interactions)
+
+**FreeBSD:** use native `gh auth status` through `terminal`, then the `gh`
+commands below with an explicit `--repo OWNER/REPO`. Skip the legacy setup
+block and curl fallback; never extract tokens from credential files. Missing
+auth goes through the user-owned login in `references/auth.md`.
 
 ```bash
 if command -v gh &>/dev/null && gh auth status &>/dev/null; then
@@ -322,8 +327,8 @@ When the user asks you to "review PR #N", "look at this PR", or gives you a PR U
 ### Step 1: Set up environment
 
 ```bash
-source "${HERMES_HOME:-$HOME/.hermes}/skills/github/github-auth/scripts/gh-env.sh"
-# Or run the inline setup block from the top of this skill
+gh auth status
+# Use the gh route with an explicit --repo OWNER/REPO; no auth helper needed.
 ```
 
 ### Step 2: Gather PR context

@@ -15,7 +15,7 @@ Create, read, edit .pptx decks with python-pptx.
 | | |
 |---|---|
 | Source | Bundled (installed by default) |
-| Path | `skills/productivity\powerpoint` |
+| Path | `skills/productivity/powerpoint` |
 | Version | `1.1.0` |
 | Author | Nous Research |
 | License | MIT |
@@ -50,20 +50,45 @@ and slide rendering — all offline, no PowerPoint installation required.
 
 ## Prerequisites
 
-- Python 3.10+ with `python-pptx` installed
-  (`pip install python-pptx`).
+- Python 3.10+ with `python-pptx` installed in a user-owned documents venv,
+  not the system Python or shared Hermes runtime.
 - Optional: LibreOffice (`soffice`) plus poppler (`pdftoppm` or
   `pdftocairo`) for rendering slides to PNGs and for PDF export.
   `pptx_render.py` detects both with `shutil.which` and degrades
   gracefully (reports `{"rendered": false, "missing": [...]}`, exit 0)
   when absent — all create/read/edit operations work without them.
-- Check availability via `terminal`:
-  `python -c "import pptx; print(pptx.__version__)"` and `which soffice pdftoppm`.
+- Check imports with the selected interpreter via `terminal`:
+  `"$DOCS_PY" -c "import pptx; print(pptx.__version__)"` (defined below).
+  Probe `soffice` and `pdftoppm` separately before promising rendering.
 
 ## How to Run
 
 All scripts live in `scripts/`, take `--help`, print JSON to stdout, and
 exit non-zero on failure. Run them with `terminal`:
+
+### FreeBSD / profile-aware invocation
+
+Resolve the package with `skill_view` and use a native documents environment
+with approved locked dependencies under the active profile:
+
+```sh
+PROFILE_HOME="${HERMES_HOME:-$HOME/.hermes}"
+DOCS_PY="$PROFILE_HOME/tool-envs/documents/bin/python"
+PPTX_SCRIPTS="$PROFILE_HOME/skills/productivity/powerpoint/scripts"
+"$DOCS_PY" "$PPTX_SCRIPTS/pptx_read.py" --help
+"$DOCS_PY" "$PPTX_SCRIPTS/pptx_read.py" deck.pptx --outline
+```
+
+Substitute the resolved package directory if different. Use
+`"$DOCS_PY" "$PPTX_SCRIPTS/<helper>.py"` for every abbreviated command below,
+without relying on activation in another tool process or changing global PATH.
+The relative examples assume the skill directory as working directory; other
+systems can use their own venv interpreter (Windows: `Scripts/python.exe`).
+Never copy a Mac venv or install optional packages into the shared runtime.
+
+On FreeBSD, native LibreOffice, Poppler, and fonts are optional rendering
+dependencies. An outline round-trip or `rendered: false` does not verify
+slide appearance; inspect actual PNG/PDF output before claiming that branch.
 
 ```bash
 python scripts/pptx_create.py deck.json out.pptx
@@ -233,5 +258,7 @@ say so rather than approximating.
    and review each PNG with `vision_analyze` — this catches overlapping
    shapes, truncated text, and color problems the outline cannot. If the
    render tools are missing, the script says so; rely on the outline.
-4. The bundled test suite is the full contract:
-   `python -m pytest tests/ -q` (requires python-pptx + pytest).
+4. From a validation checkout, run the bundled tests with
+   `scripts/run_tests.sh skills/productivity/powerpoint/tests/test_powerpoint_skill.py --file-retries 0 -q`.
+   Confirm the runner-selected venv contains python-pptx and inspect skips;
+   round-trip tests are not proof of optional rendering.

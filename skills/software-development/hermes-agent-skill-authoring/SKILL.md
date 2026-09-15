@@ -60,7 +60,7 @@ description: Concise capability statement, under sixty chars.
 version: 0.1.0                    # semver; new skills start at 0.1.0
 author: Real Name (github-handle), Hermes Agent
 license: MIT
-platforms: [linux, macos, windows]   # audit, don't guess — see Platform Gating
+platforms: [linux, macos, windows, freebsd]   # audit each route — see Platform Gating
 metadata:
   hermes:
     tags: [Short, Descriptive, Tags]
@@ -96,12 +96,29 @@ Bad: `Use when a user asks to monitor named competitors or companies for product
 
 | Skill uses only… | `platforms:` |
 |---|---|
-| Hermes tools + stdlib Python + cross-platform CLIs | `[linux, macos, windows]` |
-| bash pipelines, `grep`/`awk`/`sed` chains, heredocs | `[linux, macos]` |
+| Hermes tools + stdlib Python + CLIs verified on all four hosts | `[linux, macos, windows, freebsd]` |
+| POSIX APIs (`fcntl`, `termios`, `pty`, fork/process groups) | `[linux, macos, freebsd]` after native dependency audit |
+| Bash pipelines / heredocs with portable utility flags | `[linux, macos, freebsd]` with Bash installed; FreeBSD Bash is not `/bin/bash` |
 | `osascript`, `defaults`, `pmset` | `[macos]` |
 | `apt`/`systemctl`/`/proc` | `[linux]` |
 
-POSIX-only signals to search for in `scripts/`: `fcntl`, `termios`, `pty`, `os.fork`, `os.killpg`, `signal.SIGKILL`, `os.kill(pid, 0)` liveness checks, hardcoded `/tmp` `/proc` `/etc`. Default posture: fix cross-platform first (`tempfile.gettempdir()`, `pathlib.Path`, `psutil.pid_exists`); gate narrower only when the dependency is genuinely platform-bound, and say why in `## Pitfalls`.
+Audit `scripts/` with `search_files`: POSIX APIs are not Linux-only.
+Linux `/proc` layouts, systemd, GNU-only utility flags, and Linux binary
+downloads need separate native routes; do not map FreeBSD to Linux globally.
+`/tmp` and `/etc` are path assumptions, not OS detectors. Fix cross-platform
+first (`tempfile.gettempdir()`, `pathlib.Path`, `psutil.pid_exists`); gate
+narrower only when a dependency is genuinely platform-bound and say why in
+`## Pitfalls`. No `platforms` field means unrestricted in the loader, not
+verified everywhere; repo standards still require an audited declaration.
+
+On FreeBSD, probe native commands/packages and run the real helper before
+claiming support. Resolve profile paths from `skill_view` and `$HERMES_HOME`
+(default `${HERMES_HOME:-$HOME/.hermes}`), quote absolute interpreter/script
+paths, and keep optional dependencies in user-owned tool environments.
+Do not copy Mac binaries/venvs, modify a shared Hermes venv, or infer native
+rendering/auth/attach support from loadability or a help command. Keep Apple
+workflows Mac-only and verify host-specific behavior on that host, never by
+spoofing `sys.platform`.
 
 ## Size Limits
 

@@ -1,5 +1,21 @@
 # GitHub Authentication Setup
 
+## FreeBSD: use native gh, not the legacy fallbacks
+
+Through `terminal`, probe `command -v gh` and `gh --version`. Prefer an
+approved native `gh` package when missing; never substitute a Linux binary.
+With authorization to check the intended account, run `gh auth status`.
+If login is needed, the user completes `gh auth login` in their own
+interactive terminal/browser, outside agent-captured tools. Do not collect
+passwords, tokens, or device codes in chat or command logs. Afterward verify
+`gh auth status` and an approved `gh repo view OWNER/REPO --json nameWithOwner`.
+
+Stop here for FreeBSD: use native `gh`/`gh api` for the workflow. The legacy
+methods below are not the FreeBSD route. Do not execute `gh-env.sh`, scrape
+`.env`/`.git-credentials`, copy Mac credentials, or use the raw-token or
+direct `hosts.yml` fallback. A failed native login remains `blocked-auth`;
+it does not authorize credential recovery or broader scopes.
+
 This skill sets up authentication so the agent can work with GitHub repositories, PRs, issues, and CI. It covers two paths:
 
 - **`git` (always available)** — uses HTTPS personal access tokens or SSH keys

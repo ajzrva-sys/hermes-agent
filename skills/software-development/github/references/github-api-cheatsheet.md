@@ -2,12 +2,19 @@
 
 Base URL: `https://api.github.com`
 
-All requests need: `-H "Authorization: token $GITHUB_TOKEN"`
+Use authenticated `gh api` through `terminal`; it handles credentials
+without placing a token in command arguments. This is the FreeBSD route:
 
-Use the `gh-env.sh` helper to set `$GITHUB_TOKEN`, `$GH_OWNER`, `$GH_REPO` automatically:
 ```bash
-source "${HERMES_HOME:-$HOME/.hermes}/skills/github/github-auth/scripts/gh-env.sh"
+gh auth status
+gh api --method GET repos/OWNER/REPO
 ```
+
+Replace `OWNER/REPO` with the approved target. Use the endpoint/method
+tables below, not `gh-env.sh` or credential-file extraction. Skip the legacy
+curl examples on FreeBSD and use `gh api --method METHOD ENDPOINT` instead
+of expanding a token into an Authorization-header command argument.
+Writes still require approval and exact-target readback.
 
 ## Repositories
 

@@ -39,19 +39,28 @@ functionality is covered by the `nearby` command below, with the same
 
 Python 3.8+ (stdlib only — no pip installs needed).
 
-Script path: `~/.hermes/skills/maps/scripts/maps_client.py`
+Resolve the package directory from `skill_view`; its bundled path is
+`${HERMES_HOME:-$HOME/.hermes}/skills/productivity/maps/`. Run helpers through
+`terminal` with a verified native Python executable, not a CWD-relative path.
 
 ## Commands
 
 ```bash
-MAPS=~/.hermes/skills/maps/scripts/maps_client.py
+MAPS="${HERMES_HOME:-$HOME/.hermes}/skills/productivity/maps/scripts/maps_client.py"
+MAPS_PY="/usr/local/bin/python3.12"  # FreeBSD example: verify this path first
+"$MAPS_PY" "$MAPS" --help
 ```
+
+Substitute the actual resolved script and interpreter paths. On Linux/macOS
+or Windows, select the native Python on that host instead. These are
+task-local variables; re-establish them in a new terminal process. No
+dependency installation or shared-runtime modification is needed.
 
 ### search — Geocode a place name
 
 ```bash
-python $MAPS search "Eiffel Tower"
-python $MAPS search "1600 Pennsylvania Ave, Washington DC"
+"$MAPS_PY" "$MAPS" search "Eiffel Tower"
+"$MAPS_PY" "$MAPS" search "1600 Pennsylvania Ave, Washington DC"
 ```
 
 Returns: lat, lon, display name, type, bounding box, importance score.
@@ -59,7 +68,7 @@ Returns: lat, lon, display name, type, bounding box, importance score.
 ### reverse — Coordinates to address
 
 ```bash
-python $MAPS reverse 48.8584 2.2945
+"$MAPS_PY" "$MAPS" reverse 48.8584 2.2945
 ```
 
 Returns: full address breakdown (street, city, state, country, postcode).
@@ -68,15 +77,15 @@ Returns: full address breakdown (street, city, state, country, postcode).
 
 ```bash
 # By coordinates (from a Telegram location pin, for example)
-python $MAPS nearby 48.8584 2.2945 restaurant --limit 10
-python $MAPS nearby 40.7128 -74.0060 hospital --radius 2000
+"$MAPS_PY" "$MAPS" nearby 48.8584 2.2945 restaurant --limit 10
+"$MAPS_PY" "$MAPS" nearby 40.7128 -74.0060 hospital --radius 2000
 
 # By address / city / zip / landmark — --near auto-geocodes
-python $MAPS nearby --near "Times Square, New York" --category cafe
-python $MAPS nearby --near "90210" --category pharmacy
+"$MAPS_PY" "$MAPS" nearby --near "Times Square, New York" --category cafe
+"$MAPS_PY" "$MAPS" nearby --near "90210" --category pharmacy
 
 # Multiple categories merged into one query
-python $MAPS nearby --near "downtown austin" --category restaurant --category bar --limit 10
+"$MAPS_PY" "$MAPS" nearby --near "downtown austin" --category restaurant --category bar --limit 10
 ```
 
 46 categories: restaurant, cafe, bar, hospital, pharmacy, hotel, guest_house,
@@ -95,9 +104,9 @@ directions from the search point), and promoted tags when available —
 ### distance — Travel distance and time
 
 ```bash
-python $MAPS distance "Paris" --to "Lyon"
-python $MAPS distance "New York" --to "Boston" --mode driving
-python $MAPS distance "Big Ben" --to "Tower Bridge" --mode walking
+"$MAPS_PY" "$MAPS" distance "Paris" --to "Lyon"
+"$MAPS_PY" "$MAPS" distance "New York" --to "Boston" --mode driving
+"$MAPS_PY" "$MAPS" distance "Big Ben" --to "Tower Bridge" --mode walking
 ```
 
 Modes: driving (default), walking, cycling. Returns road distance, duration,
@@ -106,8 +115,8 @@ and straight-line distance for comparison.
 ### directions — Turn-by-turn navigation
 
 ```bash
-python $MAPS directions "Eiffel Tower" --to "Louvre Museum" --mode walking
-python $MAPS directions "JFK Airport" --to "Times Square" --mode driving
+"$MAPS_PY" "$MAPS" directions "Eiffel Tower" --to "Louvre Museum" --mode walking
+"$MAPS_PY" "$MAPS" directions "JFK Airport" --to "Times Square" --mode driving
 ```
 
 Returns numbered steps with instruction, distance, duration, road name, and
@@ -116,8 +125,8 @@ maneuver type (turn, depart, arrive, etc.).
 ### timezone — Timezone for coordinates
 
 ```bash
-python $MAPS timezone 48.8584 2.2945
-python $MAPS timezone 35.6762 139.6503
+"$MAPS_PY" "$MAPS" timezone 48.8584 2.2945
+"$MAPS_PY" "$MAPS" timezone 35.6762 139.6503
 ```
 
 Returns timezone name, UTC offset, and current local time.
@@ -125,8 +134,8 @@ Returns timezone name, UTC offset, and current local time.
 ### area — Bounding box and area for a place
 
 ```bash
-python $MAPS area "Manhattan, New York"
-python $MAPS area "London"
+"$MAPS_PY" "$MAPS" area "Manhattan, New York"
+"$MAPS_PY" "$MAPS" area "London"
 ```
 
 Returns bounding box coordinates, width/height in km, and approximate area.
@@ -135,7 +144,7 @@ Useful as input for the bbox command.
 ### bbox — Search within a bounding box
 
 ```bash
-python $MAPS bbox 40.75 -74.00 40.77 -73.98 restaurant --limit 20
+"$MAPS_PY" "$MAPS" bbox 40.75 -74.00 40.77 -73.98 restaurant --limit 20
 ```
 
 Finds POIs within a geographic rectangle. Use `area` first to get the
@@ -148,7 +157,7 @@ When a user sends a location pin, the message contains `latitude:` and
 
 ```bash
 # User sent a pin at 36.17, -115.14 and asked "find cafes nearby"
-python $MAPS nearby 36.17 -115.14 cafe --radius 1500
+"$MAPS_PY" "$MAPS" nearby 36.17 -115.14 cafe --radius 1500
 ```
 
 Present results as a numbered list with names, distances, and the
@@ -187,9 +196,9 @@ current.
 ## Verification
 
 ```bash
-python ~/.hermes/skills/maps/scripts/maps_client.py search "Statue of Liberty"
+"$MAPS_PY" "$MAPS" search "Statue of Liberty"
 # Should return lat ~40.689, lon ~-74.044
 
-python ~/.hermes/skills/maps/scripts/maps_client.py nearby --near "Times Square" --category restaurant --limit 3
+"$MAPS_PY" "$MAPS" nearby --near "Times Square" --category restaurant --limit 3
 # Should return a list of restaurants within ~500m of Times Square
 ```

@@ -15,7 +15,7 @@ Inspect codebases w/ pygount: LOC, languages, ratios.
 | | |
 |---|---|
 | Source | Bundled (installed by default) |
-| Path | `skills/software-development\codebase-inspection` |
+| Path | `skills/software-development/codebase-inspection` |
 | Version | `1.0.0` |
 | Author | Hermes Agent |
 | License | MIT |
@@ -43,9 +43,36 @@ Analyze repositories for lines of code, language breakdown, file counts, and cod
 
 ## Prerequisites
 
+Use `terminal` with a user-owned developer environment, not system pip or
+the shared Hermes venv. Resolve the active profile before provisioning.
+On FreeBSD, verify a native Python path first (for example
+`/usr/local/bin/python3.12`); with install approval:
+
 ```bash
-pip install --break-system-packages pygount 2>/dev/null || pip install pygount
+PROFILE_HOME="${HERMES_HOME:-$HOME/.hermes}"
+uv venv --python /usr/local/bin/python3.12 "$PROFILE_HOME/tool-envs/developer"
+DEVELOPER_PY="$PROFILE_HOME/tool-envs/developer/bin/python"
 ```
+
+Reuse that environment if it already exists. On Linux/macOS choose the
+verified interpreter on that host; Windows venvs use `Scripts/python.exe`.
+Use `write_file` to create a task-local `developer.in` containing `pygount`
+(and `debugpy` only if needed), resolve and review a native hash-locked set,
+then install explicitly into the environment:
+
+```bash
+uv pip compile --python "$DEVELOPER_PY" --generate-hashes developer.in -o developer.lock
+uv pip install --python "$DEVELOPER_PY" --require-hashes -r developer.lock
+uv pip check --python "$DEVELOPER_PY"
+PYGOUNT="$PROFILE_HOME/tool-envs/developer/bin/pygount"
+"$PYGOUNT" --help
+```
+
+Use the selected absolute `PYGOUNT` path for every command below (Windows:
+the venv's `Scripts/pygount.exe`). Re-establish these task-local variables
+in each new terminal process; no global PATH changes or cross-process venv
+activation assumptions. Never bypass externally managed Python protections
+with `--break-system-packages`.
 
 ## 1. Basic Summary (Most Common)
 
@@ -53,7 +80,7 @@ Get a full language breakdown with file counts, code lines, and comment lines:
 
 ```bash
 cd /path/to/repo
-pygount --format=summary \
+"$PYGOUNT" --format=summary \
   --folders-to-skip=".git,node_modules,venv,.venv,__pycache__,.cache,dist,build,.next,.tox,.eggs,*.egg-info" \
   .
 ```
@@ -79,33 +106,33 @@ Adjust based on the project type:
 
 ```bash
 # Only count Python files
-pygount --suffix=py --format=summary .
+"$PYGOUNT" --suffix=py --format=summary --folders-to-skip=".git,venv,.venv,__pycache__" .
 
 # Only count Python and YAML
-pygount --suffix=py,yaml,yml --format=summary .
+"$PYGOUNT" --suffix=py,yaml,yml --format=summary --folders-to-skip=".git,venv,.venv,__pycache__" .
 ```
 
 ## 4. Detailed File-by-File Output
 
 ```bash
 # Default format shows per-file breakdown
-pygount --folders-to-skip=".git,node_modules,venv" .
+"$PYGOUNT" --folders-to-skip=".git,node_modules,venv" .
 
 # Sort by code lines (pipe through sort)
-pygount --folders-to-skip=".git,node_modules,venv" . | sort -t$'\t' -k1 -nr | head -20
+"$PYGOUNT" --folders-to-skip=".git,node_modules,venv" . | sort -t$'\t' -k1 -nr | head -20
 ```
 
 ## 5. Output Formats
 
 ```bash
 # Summary table (default recommendation)
-pygount --format=summary .
+"$PYGOUNT" --format=summary --folders-to-skip=".git,node_modules,venv,.venv" .
 
 # JSON output for programmatic use
-pygount --format=json .
+"$PYGOUNT" --format=json --folders-to-skip=".git,node_modules,venv,.venv" .
 
 # Pipe-friendly: Language, file count, code, docs, empty, string
-pygount --format=summary . 2>/dev/null
+"$PYGOUNT" --format=summary --folders-to-skip=".git,node_modules,venv,.venv" .
 ```
 
 ## 6. Interpreting Results

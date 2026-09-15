@@ -17,7 +17,7 @@ backend.port = 993
 backend.encryption.type = "tls"
 backend.login = "user@example.com"
 backend.auth.type = "password"
-backend.auth.raw = "your-password"
+backend.auth.cmd = "pass show email/imap"
 
 # SMTP backend for sending emails
 message.send.backend.type = "smtp"
@@ -26,7 +26,7 @@ message.send.backend.port = 587
 message.send.backend.encryption.type = "start-tls"
 message.send.backend.login = "user@example.com"
 message.send.backend.auth.type = "password"
-message.send.backend.auth.raw = "your-password"
+message.send.backend.auth.cmd = "pass show email/smtp"
 
 # Folder aliases — required whenever server folder names differ
 # from himalaya's canonical names. See "Folder Aliases" below.
@@ -38,18 +38,29 @@ folder.aliases.trash = "Trash"
 
 ## Password Options
 
-### Raw password (testing only, not recommended)
-
-```toml
-backend.auth.raw = "your-password"
-```
+Do not put plaintext passwords in TOML, chat, command arguments, or logs.
+The examples below assume the user has provisioned the secret store outside
+the agent session. Never execute the configured password command directly
+through an agent tool: its stdout is a secret intended only for Himalaya.
 
 ### Password from command (recommended)
 
 ```toml
 backend.auth.cmd = "pass show email/imap"
-# backend.auth.cmd = "security find-generic-password -a user@example.com -s imap -w"
 ```
+
+On FreeBSD, verify that `pass` (or the chosen supported secret command)
+exists and can unlock in the user's session. Do not assume a desktop keyring
+or copy Mac credentials. If no secure provider is configured, stop at
+`blocked-auth` and have the user complete setup in their own terminal.
+
+macOS-only alternative, configured by the user for an existing Keychain item:
+
+```toml
+backend.auth.cmd = "security find-generic-password -a user@example.com -s imap -w"
+```
+
+`security` is not a FreeBSD command; this is not a migration fallback.
 
 ### System keyring (requires keyring feature)
 
@@ -57,7 +68,9 @@ backend.auth.cmd = "pass show email/imap"
 backend.auth.keyring = "imap-example"
 ```
 
-Then run `himalaya account configure <account>` to store the password.
+The user runs `himalaya account configure <account>` in their own interactive
+terminal to store the password. Verify that the selected build and host
+actually support the keyring backend; do not assume it on headless FreeBSD.
 
 ## Gmail Configuration
 

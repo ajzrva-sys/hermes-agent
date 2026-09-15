@@ -15,7 +15,7 @@ Create, read, edit, template, and review Word .docx files.
 | | |
 |---|---|
 | Source | Bundled (installed by default) |
-| Path | `skills/productivity\docx` |
+| Path | `skills/productivity/docx` |
 | Version | `1.1.0` |
 | Author | Nous Research |
 | License | MIT |
@@ -54,7 +54,8 @@ fields, and package health checks. It does not render documents itself
 ## Prerequisites
 
 - Python 3.10+ with `python-docx` installed:
-  `pip install python-docx` (import name is `docx`; lxml comes with it).
+  install it in a user-owned documents venv (import name is `docx`; lxml
+  comes with it), not in the system Python or shared Hermes runtime.
 - Comments `add` uses the native API on python-docx >= 1.2 and an XML
   fallback on older versions — both are automatic.
 - For image blocks: the image files must exist locally (PNG/JPEG).
@@ -63,6 +64,29 @@ fields, and package health checks. It does not render documents itself
 
 All helpers live in `scripts/` next to this file. Run them with the
 `terminal` tool; each supports `--help` and prints JSON to stdout.
+
+### FreeBSD / profile-aware invocation
+
+Resolve this package with `skill_view`; the bundled path is shown below.
+Use a native Python 3.10+ documents environment provisioned under the active
+profile. If missing, create it with `uv venv --python <verified-native-python>
+"$PROFILE_HOME/tool-envs/documents"` and install the approved, locked document
+dependencies there. Do not copy a Mac venv or modify the shared runtime.
+
+```sh
+PROFILE_HOME="${HERMES_HOME:-$HOME/.hermes}"
+DOCS_PY="$PROFILE_HOME/tool-envs/documents/bin/python"
+DOCX_SCRIPTS="$PROFILE_HOME/skills/productivity/docx/scripts"
+"$DOCS_PY" "$DOCX_SCRIPTS/docx_read.py" --help
+"$DOCS_PY" "$DOCX_SCRIPTS/docx_read.py" out.docx --text
+```
+
+Substitute the resolved package directory if different. For every abbreviated
+command below, use `"$DOCS_PY" "$DOCX_SCRIPTS/<helper>.py"`; these absolute
+paths work from any working directory without activation or a global PATH
+change. On other systems, use the equivalent interpreter path in your own
+venv (Windows: `Scripts/python.exe`). The relative examples assume the skill
+directory is the working directory, not the project or `scripts/` directory.
 
 ```bash
 python scripts/docx_create.py spec.json out.docx

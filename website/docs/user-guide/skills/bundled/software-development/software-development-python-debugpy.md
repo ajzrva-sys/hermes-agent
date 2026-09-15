@@ -15,7 +15,7 @@ Debug Python: pdb REPL + debugpy remote (DAP).
 | | |
 |---|---|
 | Source | Bundled (installed by default) |
-| Path | `skills/software-development\python-debugpy` |
+| Path | `skills/software-development/python-debugpy` |
 | Version | `1.0.0` |
 | Author | Hermes Agent |
 | License | MIT |
@@ -166,10 +166,35 @@ For long-lived processes: Hermes gateway, tui_gateway, a daemon, a process that'
 
 ### Setup
 
+Use `terminal` with an explicit interpreter. On FreeBSD, prefer launching
+the target under debugpy; attaching to an existing PID is unverified.
+Create or reuse a user-owned developer environment after verifying the
+native Python path (for example `/usr/local/bin/python3.12`):
+
 ```bash
-source <hermes-agent-repo>/.venv/bin/activate
-pip install debugpy
+PROFILE_HOME="${HERMES_HOME:-$HOME/.hermes}"
+DEBUG_PY="$PROFILE_HOME/tool-envs/developer/bin/python"
+# Only if the environment is absent, with install approval:
+uv venv --python /usr/local/bin/python3.12 "$PROFILE_HOME/tool-envs/developer"
 ```
+
+With `write_file`, put `debugpy` in a task-local `developer.in` (retain
+`pygount` if sharing this cohort), then resolve/review a native hash lock:
+
+```bash
+uv pip compile --python "$DEBUG_PY" --generate-hashes developer.in -o developer.lock
+uv pip install --python "$DEBUG_PY" --require-hashes -r developer.lock
+uv pip check --python "$DEBUG_PY"
+"$DEBUG_PY" -c 'import debugpy; print(debugpy.__version__)'
+```
+
+On Linux/macOS select the verified interpreter for that host or an existing
+user-owned project venv. The target's application dependencies must be
+available in the chosen environment too. Never mutate the shared Hermes
+runtime or use `--break-system-packages`; do not copy a Mac venv. For the
+earlier pdb recipes on FreeBSD, replace `python` with the selected absolute
+interpreter. Re-establish variables in a new tool process rather than relying
+on activation or changing global PATH.
 
 ### Pattern A: Source-edit — process waits for debugger at launch
 
@@ -188,28 +213,31 @@ Start the process; it blocks on `wait_for_client()`.
 ### Pattern B: No source edit — launch with `-m debugpy`
 
 ```bash
-python -m debugpy --listen 127.0.0.1:5678 --wait-for-client your_script.py arg1
+"$DEBUG_PY" -m debugpy --listen 127.0.0.1:5678 --wait-for-client your_script.py arg1
 ```
 
 Equivalent for module entry:
 
 ```bash
-python -m debugpy --listen 127.0.0.1:5678 --wait-for-client -m your.module
+"$DEBUG_PY" -m debugpy --listen 127.0.0.1:5678 --wait-for-client -m your.module
 ```
 
 ### Pattern C: Attach to an already-running process
 
-Needs the PID and debugpy preinstalled in the target's environment:
+For hosts where injection is supported, this needs the PID and debugpy
+preinstalled in the target's environment. This is not a verified FreeBSD
+route; use Pattern B there.
 
 ```bash
-python -m debugpy --listen 127.0.0.1:5678 --pid <pid>
+"$DEBUG_PY" -m debugpy --listen 127.0.0.1:5678 --pid <pid>
 # debugpy injects itself into the process. Then attach a client as below.
 ```
 
-Some kernels/security configs block the ptrace-based injection (`/proc/sys/kernel/yama/ptrace_scope`). Fix with:
-```bash
-echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
-```
+Some kernels/security configs block injection. Linux Yama's
+`/proc/sys/kernel/yama/ptrace_scope` is Linux-specific, not a FreeBSD path.
+Do not weaken host security or write that setting; launch under debugpy
+instead. An IDE/DAP connection to an already-launched debugpy listener is
+distinct from injecting into an arbitrary existing PID.
 
 ### Connecting a client from the terminal
 
@@ -272,7 +300,8 @@ This is fine for one-off automation but painful as an interactive UX.
 **Option 3: Ditch DAP, use `remote-pdb`** — usually what you actually want from a terminal agent:
 
 ```bash
-pip install remote-pdb
+# Optional: resolve remote-pdb in the approved developer lock first.
+uv pip install --python "$DEBUG_PY" --require-hashes -r developer.lock
 ```
 
 In your code:
@@ -335,7 +364,7 @@ Long-lived. Use `remote-pdb` at a handler, or `debugpy` with `--wait-for-client`
 
 4. **`debugpy.listen` blocks only if you also call `wait_for_client()`.** Without it, execution continues and your first breakpoint may fire before the client is attached.
 
-5. **Attach to PID fails on hardened kernels.** `ptrace_scope=1` (Ubuntu default) allows only same-user ptrace of child processes. Workaround: `echo 0 > /proc/sys/kernel/yama/ptrace_scope` (needs root) or launch under `debugpy` from the start.
+5. **Attach to PID fails on hardened kernels.** Launch under debugpy rather than weakening ptrace policy. FreeBSD has no Linux Yama setting; existing-PID injection remains unverified even when launched debugging works.
 
 6. **Threads.** `pdb` only debugs the current thread. For multithreaded code, use `debugpy` (thread-aware DAP) or set `threading.settrace()` per thread.
 
@@ -347,8 +376,9 @@ Long-lived. Use `remote-pdb` at a handler, or `debugpy` with `--wait-for-client`
 
 ## Verification Checklist
 
-- [ ] After `pip install debugpy`, confirm: `python -c "import debugpy; print(debugpy.__version__)"`
-- [ ] For remote debug, confirm the port is actually listening: `ss -tlnp | grep 5678`
+- [ ] Confirm the selected interpreter imports debugpy: `"$DEBUG_PY" -c "import debugpy; print(debugpy.__version__)"`.
+- [ ] On FreeBSD check the listener via `terminal`: `sockstat -4 -6 -l -P tcp -p 5678`; the debug port must bind only to loopback. Linux: `ss -tlnp`; macOS: `lsof -nP -iTCP:5678 -sTCP:LISTEN`. Never expose the debugger publicly.
+- [ ] A bounded fixture launched with `"$DEBUG_PY" -m debugpy --listen 127.0.0.1:5678 fixture.py` (no wait flag) runs and exits. This proves launch only; verify the DAP breakpoint separately and do not claim existing-PID attach support from it.
 - [ ] First breakpoint actually hits (if it doesn't, you likely have `PYTHONBREAKPOINT=0`, you're under a parallel/capturing runner, or execution finished before attach)
 - [ ] `where` / `w` shows the expected call stack
 - [ ] Post-debug cleanup: no stray `breakpoint()` / `set_trace()` in committed code

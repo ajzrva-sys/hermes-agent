@@ -15,7 +15,7 @@ Create, read, edit Excel .xlsx workbooks and CSVs.
 | | |
 |---|---|
 | Source | Bundled (installed by default) |
-| Path | `skills/productivity\xlsx` |
+| Path | `skills/productivity/xlsx` |
 | Version | `1.1.0` |
 | Author | Nous Research |
 | License | MIT |
@@ -55,15 +55,41 @@ scripts are argparse CLIs that print JSON and use explicit UTF-8 I/O.
 
 ## Prerequisites
 
-- Python 3.10+ with `openpyxl` (`pip install openpyxl`). No other
-  third-party packages are needed; everything else is stdlib.
+- Python 3.10+ with `openpyxl` in a user-owned documents venv, not the
+  system Python or shared Hermes runtime. Install its declared dependencies
+  with the environment's lock; image operations also need Pillow.
 - Optional: LibreOffice (`soffice`) for headless recalculation or
   format conversion.
 
 ## How to Run
 
-Run the helper scripts with the `terminal` tool from this skill's
-`scripts/` directory (every script supports `--help`):
+Run the helper scripts with the `terminal` tool (every script supports
+`--help`). Relative `scripts/...` examples assume this skill's directory,
+not the `scripts/` directory, as the working directory.
+
+### FreeBSD / profile-aware invocation
+
+Resolve this package with `skill_view`; substitute its actual directory if
+different. Use a native, user-owned documents environment with approved
+locked dependencies under the active profile:
+
+```sh
+PROFILE_HOME="${HERMES_HOME:-$HOME/.hermes}"
+DOCS_PY="$PROFILE_HOME/tool-envs/documents/bin/python"
+XLSX_SCRIPTS="$PROFILE_HOME/skills/productivity/xlsx/scripts"
+"$DOCS_PY" "$XLSX_SCRIPTS/xlsx_read.py" --help
+"$DOCS_PY" "$XLSX_SCRIPTS/xlsx_read.py" report.xlsx --sheets
+```
+
+Use `"$DOCS_PY" "$XLSX_SCRIPTS/<helper>.py"` for every abbreviated command
+below. Do not rely on activation in another terminal process or change global
+PATH. Other systems may use their own venv interpreter (Windows:
+`Scripts/python.exe`); never copy a Mac venv or mutate the shared runtime.
+
+Native LibreOffice is optional on FreeBSD. `xlsx_recalc.py` must actually
+return `recalculated: true`, followed by a readback of the expected cached
+values, before reporting calculated results. Formula preservation and
+`xlsx_edit.py --recalc` (recalculate-on-open flag) do not perform calculation.
 
 ```bash
 python scripts/xlsx_create.py spec.json report.xlsx   # build from JSON spec

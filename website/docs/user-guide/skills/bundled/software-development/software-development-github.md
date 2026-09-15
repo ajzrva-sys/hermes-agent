@@ -15,7 +15,7 @@ GitHub via gh CLI: PRs, issues, reviews, repos, auth.
 | | |
 |---|---|
 | Source | Bundled (installed by default) |
-| Path | `skills/software-development\github` |
+| Path | `skills/software-development/github` |
 | Version | `2.0.0` |
 | Author | Ben Barclay (benbarclay), Hermes Agent |
 | License | MIT |
@@ -48,10 +48,27 @@ starting that workflow, the body below only routes.
 | Review someone's PR: diffs, inline comments, verdict | `references/code-review.md` |
 | Clone/create/fork repos, remotes, releases | `references/repo-management.md` |
 
-Supporting assets: `scripts/gh-env.sh` + `scripts/git-credential-token.py`
-(auth helpers), `templates/` (PR bodies, bug report, feature request),
+Supporting assets: `templates/` (PR bodies, bug report, feature request),
 `references/ci-troubleshooting.md`, `references/conventional-commits.md`,
 `references/github-api-cheatsheet.md`, `references/review-output-template.md`.
+
+## FreeBSD: native gh route
+
+Use `terminal` with native `gh` (probe `command -v gh` and `gh --version`).
+If missing, ask for an approved native package installation; do not download
+a Linux executable. With account/read access approved, preflight using
+`gh auth status`, then `gh repo view OWNER/REPO --json nameWithOwner` for the
+intended repository. If authentication is missing, the user runs `gh auth
+login` in their own interactive terminal/browser. Record `blocked-auth`
+until complete; never request tokens or device codes in chat.
+
+Use the `gh` commands in each reference, and `gh api` for REST endpoints.
+Do not source `scripts/gh-env.sh` or run `scripts/git-credential-token.py`:
+the legacy fallback has a stale `skills/github/github-auth` path and
+automatically extracts credentials. Do not repair authentication by scraping
+`.env`, `.git-credentials`, Mac Keychain, or another profile. Those helpers
+are not prerequisites for the native route. Skip the references' legacy
+auto-detection, raw curl/auth, and credential-store fallback recipes on FreeBSD.
 
 ## Core discipline (applies to every workflow)
 

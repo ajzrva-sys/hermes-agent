@@ -4,10 +4,15 @@ Create, search, triage, and manage GitHub issues. Each section shows `gh` first,
 
 ## Prerequisites
 
-- Authenticated with GitHub (see `github-auth` skill)
+- Authenticated with GitHub (see `references/auth.md`)
 - Inside a git repo with a GitHub remote, or specify the repo explicitly
 
 ### Setup
+
+**FreeBSD:** use native `gh auth status` through `terminal`, then the `gh`
+commands below with an explicit `--repo OWNER/REPO`. Skip the legacy setup
+block and curl fallback; never extract tokens from credential files. Missing
+auth goes through the user-owned login in `references/auth.md`.
 
 ```bash
 if command -v gh &>/dev/null && gh auth status &>/dev/null; then

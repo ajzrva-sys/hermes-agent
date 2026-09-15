@@ -4,9 +4,14 @@ Create, clone, fork, configure, and manage GitHub repositories. Each section sho
 
 ## Prerequisites
 
-- Authenticated with GitHub (see `github-auth` skill)
+- Authenticated with GitHub (see `references/auth.md`)
 
 ### Setup
+
+**FreeBSD:** use native `gh auth status` through `terminal`, then the `gh`
+commands below with the intended repository specified. Skip the legacy setup
+block and curl fallback; never extract tokens from credential files. Missing
+auth goes through the user-owned login in `references/auth.md`.
 
 ```bash
 if command -v gh &>/dev/null && gh auth status &>/dev/null; then

@@ -15,7 +15,7 @@ PDF files: create, read, merge, fill, OCR, edit text.
 | | |
 |---|---|
 | Source | Bundled (installed by default) |
-| Path | `skills/productivity\pdf` |
+| Path | `skills/productivity/pdf` |
 | Version | `1.1.0` |
 | Author | Nous Research |
 | License | MIT |
@@ -48,14 +48,40 @@ Create PDFs from structured specs, build and fill AcroForm forms (with layout li
 
 ## Prerequisites
 
-- Python 3.10+ with `pypdf`, `reportlab`, `pdfplumber`:
-  `python -m pip install pypdf reportlab pdfplumber`
-- Optional, for page rasterization (`pdf_page_image.py`, overlay rendering): `python -m pip install pypdfium2`, or poppler's `pdftoppm` on PATH. Scripts fall back pypdfium2 → pdftoppm and report `{"rendered": false, "missing": [...]}` (exit 0) when neither exists.
+- Python 3.10+ with `pypdf`, `reportlab`, `pdfplumber` in a user-owned
+  documents venv, not the system Python or shared Hermes runtime. Include
+  pypdf's supported crypto dependency for AES encryption and Pillow for overlays.
+- Optional, for page rasterization (`pdf_page_image.py`, overlay rendering): `pypdfium2` in that environment, or poppler's `pdftoppm` on PATH. Scripts fall back pypdfium2 → pdftoppm and report `{"rendered": false, "missing": [...]}` (exit 0) when neither exists.
 - Each helper script checks imports lazily and prints an install hint if a dependency is missing.
 
 ## How to Run
 
 All helpers live in `scripts/` and are argparse CLIs — run them with the `terminal` tool; every one supports `--help`. They read/write JSON strictly as UTF-8, print JSON results to stdout, and exit non-zero on failure.
+
+### FreeBSD / profile-aware invocation
+
+Resolve this package with `skill_view`; substitute its actual directory if
+it differs from the bundled path. Use a user-owned documents environment
+created with a verified native Python and approved locked dependencies:
+
+```sh
+PROFILE_HOME="${HERMES_HOME:-$HOME/.hermes}"
+DOCS_PY="$PROFILE_HOME/tool-envs/documents/bin/python"
+PDF_SCRIPTS="$PROFILE_HOME/skills/productivity/pdf/scripts"
+"$DOCS_PY" "$PDF_SCRIPTS/pdf_read.py" --help
+"$DOCS_PY" "$PDF_SCRIPTS/pdf_read.py" doc.pdf --meta
+```
+
+For each abbreviated command below, use `"$DOCS_PY" "$PDF_SCRIPTS/<helper>.py"`.
+Do not rely on activation in a different terminal process or change global
+PATH. The relative examples assume the skill directory is the working
+directory; other systems may use their own venv interpreter (Windows:
+`Scripts/python.exe`). Never copy a Mac venv or install into the shared runtime.
+
+On FreeBSD, probe native `poppler-utils` for `pdftoppm` before assuming a
+pypdfium2 wheel exists. Rendering is a separate gate: `rendered: false` is
+not visual verification. Marker/PyTorch OCR, PyMuPDF, and nano-pdf each need
+their own native dependency/provider checks; they are not core prerequisites.
 
 ```bash
 python scripts/pdf_create.py spec.json -o out.pdf         # build PDF from JSON spec

@@ -4,10 +4,15 @@ Complete guide for managing the PR lifecycle. Each section shows the `gh` way fi
 
 ## Prerequisites
 
-- Authenticated with GitHub (see `github-auth` skill)
+- Authenticated with GitHub (see `references/auth.md`)
 - Inside a git repository with a GitHub remote
 
 ### Quick Auth Detection
+
+**FreeBSD:** use native `gh auth status` through `terminal`, then the `gh`
+commands below with an explicit `--repo OWNER/REPO`. Skip the legacy detection
+block and curl fallback; never extract tokens from credential files. Missing
+auth goes through the user-owned login in `references/auth.md`.
 
 ```bash
 # Determine which method to use throughout this workflow
