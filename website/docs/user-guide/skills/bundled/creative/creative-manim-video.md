@@ -15,7 +15,7 @@ Manim CE animations: 3Blue1Brown math/algo videos.
 | | |
 |---|---|
 | Source | Bundled (installed by default) |
-| Path | `skills/creative\manim-video` |
+| Path | `skills/creative/manim-video` |
 | Version | `1.0.0` |
 | Author | SHL0MS, Hermes Agent |
 | License | MIT |
@@ -52,7 +52,22 @@ This is educational cinema. Every frame teaches. Every animation reveals structu
 
 ## Prerequisites
 
-Run `scripts/setup.sh` to verify all dependencies. Requires: Python 3.10+, Manim Community Edition v0.20+ (`pip install manim`), LaTeX (`texlive-full` on Linux, `mactex` on macOS), and ffmpeg. Reference docs tested against Manim CE v0.20.1.
+Use `terminal` to run `bash scripts/setup.sh` from this skill's directory. The checker reports missing prerequisites and exits nonzero when any are missing; it does not install packages or prove rendering works. Requires: Python 3.10+, Manim Community Edition v0.20+, LaTeX, and ffmpeg. Reference docs tested against Manim CE v0.20.1.
+
+### FreeBSD invocation
+
+Use an approved, user-owned Python environment, not Hermes' shared runtime venv. The examples use `$HERMES_HOME/tool-envs/manim`; substitute `$HERMES_HOME/tool-envs/media` if Manim was installed there. Resolve the active `HERMES_HOME` and the skill directory from `skill_view` first; replace the canonical skill path below if it resolves elsewhere.
+
+Native dependencies include Bash, Cairo/Pango/pkgconf, ffmpeg, fontconfig and a monospace font. Probe native package candidates before requesting installation. Review the size and contents of a TeX package set providing `pdflatex`, `latex`, `dvisvgm` and the scene's LaTeX packages; do not automatically install a full TeX distribution.
+
+Run these through `terminal`; explicit `sh -c` also works when the account's login shell is tcsh. The checker calls `python3` and `manim` by name, so prepend the selected environment only for that process. Do not change global PATH or rely on activation in another tool call. Packaged Bash normally lives at `/usr/local/bin/bash`; verify that path first.
+
+```sh
+sh -c 'env PATH="$HERMES_HOME/tool-envs/manim/bin:$PATH" /usr/local/bin/bash "$HERMES_HOME/skills/creative/manim-video/scripts/setup.sh"'
+sh -c '"$HERMES_HOME/tool-envs/manim/bin/python" -m manim -ql --renderer=cairo script.py Scene1_Introduction'
+```
+
+Render headlessly: omit `-p`/`--preview`. Select an installed monospace family with `terminal(command="fc-match -f '%{family}' monospace")` and use it for `MONO` instead of assuming the macOS Menlo font exists. Before claiming readiness, render a scene containing both `Text` and `MathTex` and inspect its MP4 with ffprobe. A passing checker alone does not validate font rasterization, TeX-to-SVG conversion or video encoding. Voiceover providers remain a separate optional setup.
 
 ## Modes
 
