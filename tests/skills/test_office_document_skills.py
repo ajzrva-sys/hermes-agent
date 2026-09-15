@@ -44,7 +44,7 @@ def test_skill_exists_with_frontmatter(name):
     assert fm["description"].rstrip('"').endswith(".")
     platforms = fm.get("platforms")
     assert platforms, f"{name}: missing platforms gating"
-    assert set(platforms) <= {"linux", "macos", "windows"}
+    assert set(platforms) <= {"linux", "macos", "windows", "freebsd"}
 
 
 @pytest.mark.parametrize("name", OFFICE_SKILLS)
