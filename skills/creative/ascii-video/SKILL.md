@@ -62,6 +62,19 @@ Single self-contained Python script per project. No GPU required.
 | TTS | ElevenLabs API (optional) | Generate narration clips |
 | Optional | OpenCV | Video frame sampling, edge detection |
 
+### FreeBSD invocation
+
+Use an approved, user-owned media environment at `$HERMES_HOME/tool-envs/media` with NumPy, SciPy and Pillow. Resolve the active `HERMES_HOME` first and use that interpreter explicitly; do not install optional media dependencies into Hermes' shared runtime venv or rely on activation in another tool call. Probe native ffmpeg, fontconfig and monospace-font package candidates before requesting installation.
+
+Run through `terminal` using `sh -c` for profile-variable expansion even if the login shell is tcsh:
+
+```sh
+sh -c '"$HERMES_HOME/tool-envs/media/bin/python" -c "import numpy, scipy; from PIL import Image, ImageFont"'
+sh -c '"$HERMES_HOME/tool-envs/media/bin/python" reel.py'
+```
+
+`reel.py` is the project script built from these references, not a bundled executable. Start with a short draft. Use fontconfig's actual file result in `references/architecture.md`, not Linux font paths; read RAM via `hw.physmem` as shown in `references/optimization.md`. Follow `references/troubleshooting.md` to verify Pillow can load the selected font. Headless rendering needs no desktop/GPU: encode an actual clip and inspect its dimensions and frame count with ffprobe before claiming readiness. Audio-reactive, optional OpenCV and TTS branches need separate verification.
+
 ## Pipeline Architecture
 
 Every mode follows the same 6-stage pipeline:

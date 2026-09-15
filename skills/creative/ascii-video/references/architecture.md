@@ -88,6 +88,7 @@ Don't hardcode a single font. Choose fonts to match the project's mood. Monospac
 **Font detection at init**: probe available fonts and fall back gracefully:
 
 ```python
+import os
 import platform
 
 def find_font(preferences):
@@ -123,10 +124,21 @@ def _get_font_prefs():
         return FONT_PREFS_MACOS
     elif s == "Windows":
         return FONT_PREFS_WINDOWS
+    if s == "FreeBSD":
+        import subprocess
+        from pathlib import Path
+        selected = subprocess.check_output(
+            ["fc-match", "-f", "%{file}", "monospace"], text=True,
+        ).strip()
+        if not selected or not Path(selected).is_file():
+            raise FileNotFoundError("Install and configure a monospace font on FreeBSD")
+        return [("fontconfig monospace", selected)]
     return FONT_PREFS_LINUX
 
 FONT_PREFS = _get_font_prefs()
 ```
+
+On FreeBSD, use the file returned by fontconfig rather than guessing a package's font directory. A missing `fc-match`, failed lookup or invalid path is a dependency/configuration error, not a reason to fall through to Linux paths. Verify Pillow can load this file and inspect the project's actual glyph palette; see `troubleshooting.md` § FreeBSD Font and RAM Checks.
 
 **Multi-font rendering**: use different fonts for different layers (e.g., monospace for background, a bolder variant for overlay text). Each GridLayer owns its own font:
 

@@ -33,6 +33,13 @@ def detect_hardware():
         if platform.system() == "Darwin":
             import subprocess
             mem_bytes = int(subprocess.check_output(["sysctl", "-n", "hw.memsize"]).strip())
+        elif platform.system() == "FreeBSD":
+            import subprocess
+            mem_bytes = int(subprocess.check_output(
+                ["sysctl", "-n", "hw.physmem"], text=True,
+            ).strip())
+            if mem_bytes <= 0:
+                raise ValueError("FreeBSD hw.physmem must report positive bytes")
         elif platform.system() == "Linux":
             with open("/proc/meminfo") as f:
                 for line in f:
@@ -42,6 +49,8 @@ def detect_hardware():
         else:
             mem_bytes = 8 * 1024**3  # assume 8GB on unknown
     except Exception:
+        if platform.system() == "FreeBSD":
+            raise  # Do not silently turn a failed native probe into assumed RAM.
         mem_bytes = 8 * 1024**3
 
     mem_gb = mem_bytes / (1024**3)
@@ -64,6 +73,8 @@ def detect_hardware():
         "has_ffmpeg": has_ffmpeg,
     }
 ```
+
+On FreeBSD, `hw.physmem` reports physical memory in bytes, not current available memory or a jail's resource allowance. Confirm the result is positive and log the detected value; if the probe fails, diagnose it rather than assuming 8 GiB. Reduce workers/resolution for other workloads or tighter jail limits. See `troubleshooting.md` § FreeBSD Font and RAM Checks for native verification.
 
 ### Adaptive Quality Profiles
 

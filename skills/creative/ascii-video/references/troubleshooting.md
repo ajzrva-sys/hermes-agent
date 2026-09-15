@@ -264,9 +264,39 @@ for c in all_chars:
 |----------|-------------|
 | macOS | `/System/Library/Fonts/Menlo.ttc`, `/System/Library/Fonts/Monaco.ttf` |
 | Linux | `/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf` |
+| FreeBSD | Use the actual file returned by `fc-match -f '%{file}' monospace`; do not assume a Linux path |
 | Windows | `C:\Windows\Fonts\consola.ttf` (Consolas) |
 
 Always probe multiple paths and fall back gracefully. See `architecture.md` § Font Selection.
+
+### FreeBSD Font and RAM Checks
+
+Use `terminal` with the active profile's media interpreter as documented in `SKILL.md`. Save this check with `write_file` as `check_media.py`, then run it natively:
+
+```python
+from pathlib import Path
+import subprocess
+from PIL import ImageFont
+
+selected = subprocess.check_output(
+    ["fc-match", "-f", "%{file}", "monospace"], text=True,
+).strip()
+if not selected or not Path(selected).is_file():
+    raise FileNotFoundError("No usable fontconfig monospace result")
+font = ImageFont.truetype(selected, 12)
+ram_bytes = int(subprocess.check_output(
+    ["sysctl", "-n", "hw.physmem"], text=True,
+).strip())
+assert ram_bytes > 0
+assert sum(font.getmetrics()) > 0
+print({"font": selected, "ram_bytes": ram_bytes, "font_metrics": font.getmetrics()})
+```
+
+```sh
+sh -c '"$HERMES_HOME/tool-envs/media/bin/python" check_media.py'
+```
+
+If `fc-match` is absent or returns no file, inspect the native fontconfig/font installation and request any needed packages (for example, a monospace family from DejaVu) before retrying. Do not hide the failure with a Linux font path. A real Pillow load verifies readability; font discovery alone does not prove glyph coverage. Render the intended palette to catch blank or replacement glyphs, then encode a short clip and inspect its dimensions and frame count with ffprobe. Treat a failed RAM probe as unresolved, not as an 8 GiB machine; physical RAM is not the available render budget, especially in a jail.
 
 ---
 
