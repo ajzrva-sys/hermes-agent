@@ -972,6 +972,9 @@ def check_toolset_requirements() -> Dict[str, bool]:
     return registry.check_toolset_requirements()
 
 
-def check_tool_availability(quiet: bool = False) -> Tuple[List[str], List[dict]]:
-    """(available_toolsets, unavailable_info)."""
-    return registry.check_tool_availability(quiet=quiet)
+def check_tool_availability(
+    quiet: bool = False, *, enabled_toolsets: Optional[List[str]] = None,
+) -> Tuple[List[str], List[dict]]:
+    """(available_toolsets, unavailable_info), optionally scoped before probing."""
+    return registry.check_tool_availability(
+        quiet=quiet, enabled_toolsets=enabled_toolsets)

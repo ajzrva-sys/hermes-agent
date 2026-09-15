@@ -349,11 +349,12 @@ def _check_fn_cached(fn: Callable) -> bool:
                 _fn_label(fn), outcome, _CHECK_FN_FAILURE_GRACE_SECONDS)
             return True
 
-        # No recent success (or grace expired) — honor the failure; logged so silent tool
-        # loss in quiet mode (subagents) is diagnosable.
-        logger.warning(
-            "check_fn %s %s; dependent tools will be unavailable this turn", _fn_label(fn), outcome,
-            exc_info=exc_info)
+        # An unconfigured optional tool is normal. Probe exceptions remain
+        # warnings with tracebacks; DEBUG preserves ordinary negative verdicts.
+        logger.log(
+            logging.WARNING if exc_info is not None else logging.DEBUG,
+            "check_fn %s %s; dependent tools will be unavailable this turn",
+            _fn_label(fn), outcome, exc_info=exc_info)
         _check_fn_cache[cache_key] = (now, False)
         return False
 
@@ -932,12 +933,17 @@ class ToolRegistry:
                 "tools": [entry.name for entry in members]}
         return result
 
-    def check_tool_availability(self, quiet: bool = False):
-        """Return (available_toolsets, unavailable_info) like the old function."""
+    def check_tool_availability(
+        self, quiet: bool = False, *, enabled_toolsets: Optional[List[str]] = None,
+    ):
+        """Return available/unavailable toolsets; None selects all, [] selects none."""
         available, unavailable = [], []
         entries = self._snapshot_entries()
         groups = self._grouped(entries)
+        selected = set(enabled_toolsets) if enabled_toolsets is not None else None
         for ts in sorted(groups):
+            if selected is not None and ts not in selected:
+                continue
             if self._toolset_has_exposable_tools(ts, entries):
                 available.append(ts)
             else:

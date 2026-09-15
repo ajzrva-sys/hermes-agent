@@ -726,12 +726,11 @@ def compute_toolset_availability(enabled_toolsets: List[str] = None) -> Dict[str
     Split out so the result can be snapshotted and replayed without importing ``model_tools``.
     """
     from model_tools import check_tool_availability, TOOLSET_REQUIREMENTS
+    _, unavailable_toolsets = check_tool_availability(
+        quiet=True, enabled_toolsets=enabled_toolsets)
     enabled_toolsets = enabled_toolsets or []
-    _, unavailable_toolsets = check_tool_availability(quiet=True)
-    # The availability check walks the GLOBAL registry, so it includes toolsets outside this
-    # agent's platform set (e.g. `discord` on a CLI session) which must never surface in
-    # "Available Tools". Restrict to enabled toolsets; an enabled toolset with unmet deps
-    # legitimately shows as disabled/lazy below.
+    # Scope checks before probing; retain display filtering defensively for
+    # custom availability providers. None means all; an explicit [] means none.
     _enabled_ts = {str(t) for t in enabled_toolsets}
     if _enabled_ts:
         unavailable_toolsets = [

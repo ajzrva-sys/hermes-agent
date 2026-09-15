@@ -11,6 +11,7 @@ import importlib
 import inspect
 import logging
 import os
+import sys
 import threading
 import tomllib
 import uuid
@@ -758,6 +759,15 @@ class NoopRelayRuntime:
 RelayHost = RelayRuntime | NoopRelayRuntime
 
 
+def _is_expected_missing_binding(exc: Exception, platform_name: str) -> bool:
+    """Packaging omits Relay on FreeBSD; transitive/native failures are unexpected."""
+    return (
+        platform_name.startswith("freebsd")
+        and isinstance(exc, ModuleNotFoundError)
+        and exc.name == "nemo_relay"
+    )
+
+
 class RelayHostRegistry:
     """Own exactly one Relay host for each canonical Hermes profile."""
 
@@ -774,7 +784,13 @@ class RelayHostRegistry:
             try:
                 host = RelayRuntime(profile_key=key)
             except Exception as exc:
-                logger.warning("Hermes Relay runtime initialization failed", exc_info=True)
+                # Classify only after construction so user-built bindings still work.
+                if _is_expected_missing_binding(exc, sys.platform):
+                    logger.info(
+                        "NeMo Relay binding is not installed on FreeBSD; "
+                        "continuing with the no-op Relay host")
+                else:
+                    logger.warning("Hermes Relay runtime initialization failed", exc_info=True)
                 host = NoopRelayRuntime(profile_key=key, reason=str(exc))
             self._hosts[key] = host
             return host
