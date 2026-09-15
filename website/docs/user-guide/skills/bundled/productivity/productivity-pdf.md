@@ -19,7 +19,7 @@ PDF files: create, read, merge, fill, OCR, edit text.
 | Version | `1.1.0` |
 | Author | Nous Research |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `pdf`, `documents`, `forms`, `ocr`, `text-extraction`, `reportlab`, `pypdf`, `pdfplumber`, `pymupdf`, `marker` |
 | Related skills | [`docx`](/docs/user-guide/skills/bundled/productivity/productivity-docx), [`xlsx`](/docs/user-guide/skills/bundled/productivity/productivity-xlsx), [`powerpoint`](/docs/user-guide/skills/bundled/productivity/productivity-powerpoint) |
 

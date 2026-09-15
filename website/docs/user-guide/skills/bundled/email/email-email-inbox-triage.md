@@ -19,7 +19,7 @@ Triage an inbox: prioritize threads, draft replies safely.
 | Version | `0.1.0` |
 | Author | Ben Barclay (benbarclay), Hermes Agent |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `Email`, `Inbox`, `Triage`, `Replies`, `Productivity` |
 | Related skills | [`himalaya`](/docs/user-guide/skills/bundled/email/email-himalaya), [`google-workspace`](/docs/user-guide/skills/bundled/productivity/productivity-google-workspace) |
 

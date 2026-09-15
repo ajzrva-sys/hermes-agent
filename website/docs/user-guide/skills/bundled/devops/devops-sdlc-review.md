@@ -19,7 +19,7 @@ Review Kanban handoffs and route verified outcomes.
 | Version | `1.1.0` |
 | Author | Jakub Wolniewicz (@frizikk) + Hermes Agent |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `kanban`, `review`, `quality`, `verification` |
 
 ## Reference: full SKILL.md

@@ -19,7 +19,7 @@ Parallel 4-agent cleanup of recent code changes.
 | Version | `1.1.0` |
 | Author | Hermes Agent (inspired by Claude Code /simplify) |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `code-review`, `cleanup`, `refactor`, `delegation`, `subagent`, `parallel`, `simplify` |
 | Related skills | [`requesting-code-review`](/docs/user-guide/skills/bundled/software-development/software-development-requesting-code-review), [`test-driven-development`](/docs/user-guide/skills/bundled/software-development/software-development-test-driven-development) |
 

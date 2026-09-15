@@ -832,9 +832,10 @@ Do the legacy thing.
             raising=False,
         )
 
-        with patch("tools.skills_tool.SKILLS_DIR", tmp_path):
+        skills_root = tmp_path / "isolated-skills"
+        with patch("tools.skills_tool.SKILLS_DIR", skills_root):
             _make_skill(
-                tmp_path,
+                skills_root,
                 "gif-search",
                 frontmatter_extra=(
                     "required_environment_variables:\n"

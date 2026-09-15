@@ -4,7 +4,7 @@ description: "Notion API + ntn CLI: pages, databases, markdown, Workers."
 version: 2.0.0
 author: community
 license: MIT
-platforms: [linux, macos, windows]
+platforms: [linux, macos, windows, freebsd]
 prerequisites:
   env_vars: [NOTION_API_KEY]
 metadata:

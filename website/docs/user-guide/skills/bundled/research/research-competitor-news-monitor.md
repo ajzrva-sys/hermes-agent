@@ -19,7 +19,7 @@ Watch named companies for material news; cited digests.
 | Version | `0.1.0` |
 | Author | Ben Barclay (benbarclay), Hermes Agent |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `Competitors`, `News`, `Market-Research`, `Monitoring` |
 | Related skills | [`blogwatcher`](/docs/user-guide/skills/optional/research/research-blogwatcher), [`rss-feeds`](/docs/user-guide/skills/optional/research/research-rss-feeds), [`reddit-reading`](/docs/user-guide/skills/optional/social-media/social-media-reddit-reading) |
 

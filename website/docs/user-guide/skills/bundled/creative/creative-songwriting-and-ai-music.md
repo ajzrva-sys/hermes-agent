@@ -19,7 +19,7 @@ Songwriting craft and Suno AI music prompts.
 | Version | `1.0.0` |
 | Author | Teknium (teknium1), Hermes Agent |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 
 ## Reference: full SKILL.md
 

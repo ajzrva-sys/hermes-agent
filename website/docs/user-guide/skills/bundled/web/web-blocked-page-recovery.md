@@ -19,7 +19,7 @@ Use when a fetch fails: 403/429, paywall, WAF, bot wall.
 | Version | `1.0.0` |
 | Author | Hermes Agent |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `Research`, `Archives`, `Wayback`, `Paywall`, `WAF`, `Fallback` |
 | Related skills | [`grounded-citations`](/docs/user-guide/skills/bundled/research/research-grounded-citations) |
 

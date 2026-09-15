@@ -151,6 +151,28 @@ per-user layout.
 When using a custom data location, also set `HERMES_HOME` to that location when
 launching Hermes; the launcher does not permanently bind itself to one profile.
 
+### Other users of a root installation
+
+With the shared layout, ordinary users run `/usr/local/bin/hermes` directly;
+they do not need another copy of the application or access to root's home.
+On first use, Hermes initializes their own `~/.hermes` (or explicit
+`HERMES_HOME`) and copies the bundled skill library, including its supporting
+files. FreeBSD-compatible skills are available without a manual sync step.
+
+Run these as the account that will use Hermes:
+
+```sh
+hermes skills list
+hermes model
+```
+
+Each account configures its own provider credentials. Root's configuration,
+credentials, memories, and sessions are not copied. An unreadable legacy `.env`
+in the shared installation is skipped; do not make it world-readable to work
+around startup. Existing user skills, deletions, and bundled-skill opt-outs are
+preserved. Updating the shared program and its dependencies remains an
+administrator operation; optional integrations still need their own setup.
+
 ### Native dependencies and updates
 
 - Python comes from `python312`, with `py312-sqlite3` installed separately.

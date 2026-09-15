@@ -19,7 +19,7 @@ Himalaya CLI: IMAP/SMTP email from terminal.
 | Version | `1.1.0` |
 | Author | community |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `Email`, `IMAP`, `SMTP`, `CLI`, `Communication` |
 
 ## Reference: full SKILL.md

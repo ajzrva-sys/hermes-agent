@@ -19,7 +19,7 @@ Weekly reset: commitments, stalled work, next-week plan.
 | Version | `0.1.0` |
 | Author | Ben Barclay (benbarclay), Hermes Agent |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `Weekly-Review`, `Planning`, `Tasks`, `Calendar`, `Productivity` |
 | Related skills | [`obsidian`](/docs/user-guide/skills/bundled/note-taking/note-taking-obsidian), [`notion`](/docs/user-guide/skills/bundled/productivity/productivity-notion), [`airtable`](/docs/user-guide/skills/bundled/productivity/productivity-airtable), [`google-workspace`](/docs/user-guide/skills/bundled/productivity/productivity-google-workspace), [`email-inbox-triage`](/docs/user-guide/skills/bundled/email/email-email-inbox-triage) |
 

@@ -77,7 +77,9 @@ Check or update this installation with:
 ```
 
 Fresh root installs can use `/usr/local/lib/hermes-agent` and `/usr/local/bin`;
-existing and explicitly selected checkouts are preserved. Developer checkouts
+each account initializes its own state and bundled skills on first use, without
+copying root's credentials or needing a separate Hermes installation. Existing
+and explicitly selected checkouts are preserved. Developer checkouts
 can use `bash setup-hermes.sh --skip-setup` without changing their Git branch.
 
 The automated path skips foreign browser downloads, Computer Use, desktop/TUI

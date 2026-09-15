@@ -4,7 +4,7 @@ description: "Use, configure, theme, extend, and orchestrate Hermes Agent."
 version: 3.2.0
 author: Hermes Agent + Teknium
 license: MIT
-platforms: [linux, macos, windows]
+platforms: [linux, macos, windows, freebsd]
 metadata:
   hermes:
     tags: [hermes, setup, configuration, multi-agent, spawning, cli, gateway, bots, bot-mode, features, themes, skins, desktop-plugins, tui-widgets, petdex, development]

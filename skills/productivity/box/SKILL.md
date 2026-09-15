@@ -4,7 +4,7 @@ description: Box manages cloud files, sharing, search, and metadata.
 version: 1.0.0
 author: Chris Kim (iskysun96), Hermes Agent
 license: MIT
-platforms: [linux, macos, windows]
+platforms: [linux, macos, windows, freebsd]
 prerequisites:
   commands: [box]
 metadata:

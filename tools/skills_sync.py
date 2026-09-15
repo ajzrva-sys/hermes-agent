@@ -239,6 +239,7 @@ class _SyncState:
     suppressed: List[str] = field(default_factory=list)
     relocated: List[str] = field(default_factory=list)
     shadowed_by_external: List[str] = field(default_factory=list)
+    local_names: Optional[Set[str]] = None
     active_index: Optional[Dict[str, List[Path]]] = None  # rename-recovery indexes are expensive on
     hub_paths: Set[str] = field(default_factory=set)  # bind mounts: built lazily, only when needed
 
@@ -272,6 +273,26 @@ def _defer_to_external(st: _SyncState, skill_name: str, dest: Path, bundled_hash
         st.manifest.pop(skill_name, None)
 
 
+def _local_skill_names(st: _SyncState) -> Set[str]:
+    """Names already resolvable in this home, independent of their category."""
+    if st.local_names is None:
+        from agent.skill_utils import iter_skill_index_files, parse_frontmatter
+        root = _skills_dir()
+        st.local_names = set()
+        for md in iter_skill_index_files(root, "SKILL.md"):
+            st.local_names.add(md.parent.name)
+            try:
+                frontmatter, _ = parse_frontmatter(md.read_text(encoding="utf-8-sig", errors="replace"))
+            except OSError:
+                continue
+            if isinstance(name := frontmatter.get("name"), str):
+                st.local_names.add(name)
+        st.local_names.update(
+            md.stem for md in root.rglob("*.md")
+            if md.name != "SKILL.md" and not is_excluded_skill_path(md))
+    return st.local_names
+
+
 def _install_new_skill(st: _SyncState, skill_name: str, skill_src: Path, dest: Path, bundled_hash: str) -> None:
     """Handle a skill never offered before (not in manifest)."""
     try:
@@ -286,6 +307,11 @@ def _install_new_skill(st: _SyncState, skill_name: str, skill_src: Path, dest: P
                     f"  ⚠ {skill_name}: bundled version shipped but you already have a local skill "
                     f"by this name — yours was kept. Run `hermes skills reset {skill_name}` to "
                     f"replace it with the bundled version.")
+        elif skill_name in _local_skill_names(st):
+            # Do not introduce a second candidate or claim ownership of a
+            # custom skill just because it lives outside the bundled path.
+            st.skipped += 1
+            st.say(f"  ~ {skill_name} (existing local skill at another path, keeping it)")
         else:
             _copy_dir(skill_src, dest)
             st.copied.append(skill_name)

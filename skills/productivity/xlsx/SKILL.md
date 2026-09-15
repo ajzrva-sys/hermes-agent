@@ -4,7 +4,7 @@ description: Create, read, edit Excel .xlsx workbooks and CSVs.
 version: 1.1.0
 author: Nous Research
 license: MIT
-platforms: [linux, macos, windows]
+platforms: [linux, macos, windows, freebsd]
 metadata:
   hermes:
     tags: [excel, spreadsheet, xlsx, csv, openpyxl, productivity]

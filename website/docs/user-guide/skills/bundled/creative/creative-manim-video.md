@@ -19,7 +19,7 @@ Manim CE animations: 3Blue1Brown math/algo videos.
 | Version | `1.0.0` |
 | Author | SHL0MS, Hermes Agent |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `Manim`, `Animation`, `Math`, `Video` |
 
 ## Reference: full SKILL.md

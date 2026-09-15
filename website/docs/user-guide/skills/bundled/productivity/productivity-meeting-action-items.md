@@ -19,7 +19,7 @@ Turn meeting notes into cited decisions, owners, tickets.
 | Version | `0.1.0` |
 | Author | Ben Barclay (benbarclay), Hermes Agent |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `Meetings`, `Action-Items`, `Follow-Up`, `Productivity` |
 | Related skills | [`teams-meeting-pipeline`](/docs/user-guide/skills/bundled/productivity/productivity-teams-meeting-pipeline), [`google-workspace`](/docs/user-guide/skills/bundled/productivity/productivity-google-workspace), [`notion`](/docs/user-guide/skills/bundled/productivity/productivity-notion) |
 

@@ -356,8 +356,6 @@ def load_hermes_dotenv(
 
     if user_env.exists():  # normalize formatting / strip NULs before parsing
         _sanitize_env_file_if_needed(user_env)
-    if project_env_path and project_env_path.exists():
-        _sanitize_env_file_if_needed(project_env_path)
 
     if user_env.exists():
         _load_dotenv_with_fallback(user_env, override=True)
@@ -371,9 +369,16 @@ def load_hermes_dotenv(
     if op_env.exists() and not os.environ.get("OP_SERVICE_ACCOUNT_TOKEN"):
         _load_dotenv_with_fallback(op_env, override=False)
 
-    if project_env_path and project_env_path.exists():
-        _load_dotenv_with_fallback(project_env_path, override=not loaded)
-        loaded.append(project_env_path)
+    if project_env_path:
+        try:
+            if project_env_path.exists():
+                _sanitize_env_file_if_needed(project_env_path)
+                _load_dotenv_with_fallback(project_env_path, override=not loaded)
+                loaded.append(project_env_path)
+        except PermissionError:
+            # Shared installations may retain the installer's private .env.
+            # This dev fallback is optional; the selected user's .env is not.
+            logger.debug("Skipping unreadable project dotenv: %s", project_env_path)
 
     # External sources are skipped for the updater (dotenv + managed env still load): ``update`` must not
     # import optional secret-manager libs (Bitwarden → cryptography → _rust.pyd) into the process replacing

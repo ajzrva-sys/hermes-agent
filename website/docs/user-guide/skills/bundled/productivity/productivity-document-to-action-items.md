@@ -19,7 +19,7 @@ Extract cited obligations, deadlines, tasks from documents.
 | Version | `0.1.0` |
 | Author | Ben Barclay (benbarclay), Hermes Agent |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `Documents`, `OCR`, `Action-Items`, `Deadlines`, `Extraction` |
 | Related skills | [`pdf`](/docs/user-guide/skills/bundled/productivity/productivity-pdf), [`pdf`](/docs/user-guide/skills/bundled/productivity/productivity-pdf), [`docx`](/docs/user-guide/skills/bundled/productivity/productivity-docx), [`notion`](/docs/user-guide/skills/bundled/productivity/productivity-notion) |
 

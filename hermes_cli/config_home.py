@@ -66,6 +66,13 @@ def initialize_home(home: Path, subdirs: tuple[str, ...], ensured: set[str]) -> 
     # that spelling after the operator-owned symlink boundary has been lost.
     ensured.update((str(home), str(home.resolve())))
 
+    # Shared installs provision only the installing user's home. Seed each
+    # consumer on first use, before any surface snapshots its skill index.
+    # Mark the skeleton ensured first: skill discovery may read config again.
+    if not managed and not (home / "skills" / ".bundled_manifest").exists():
+        from tools.skills_sync import sync_skills
+        sync_skills(quiet=True)
+
 
 def config_load_issue(exc: Exception):
     from hermes_cli.config import ConfigIssue

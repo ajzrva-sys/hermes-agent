@@ -184,6 +184,10 @@ def installed_bundle():
             blocked.write_text("#!/bin/sh\nexit 97\n", encoding="utf-8")
             blocked.chmod(0o755)
         _copy_tracked_worktree(code)
+        # Legacy install-tree secrets must not become another user's defaults.
+        runtime_canary = code / ".env"
+        runtime_canary.write_text(CANARY, encoding="utf-8")
+        runtime_canary.chmod(0o600)
     except BaseException:
         if sandbox is not None:
             shutil.rmtree(sandbox)
@@ -242,6 +246,7 @@ def installed_bundle():
             "private_root": private_root,
             "private_home": private_home,
             "canary": canary,
+            "runtime_canary": runtime_canary,
         }
     finally:
         # This unique task-owned root is the only removal target. No daemons or
@@ -312,6 +317,8 @@ def test_private_root_runtime_fails_only_after_privilege_drop(installed_bundle):
 
 def test_shared_root_runtime_runs_with_private_per_user_state(installed_bundle):
     bundle = installed_bundle
+    home = bundle["consumer_home"] / ".hermes"
+    assert not (home / "skills" / ".bundled_manifest").exists()
     _checked(
         _run([bundle["public"] / "hermes", "--version"],
              env=bundle["root_env"], cwd=bundle["code"]),
@@ -319,20 +326,43 @@ def test_shared_root_runtime_runs_with_private_per_user_state(installed_bundle):
     )
     _consumer_identity(bundle)
     _assert_working_launcher(bundle, bundle["public"] / "hermes")
+    _checked(
+        _run([bundle["public"] / "hermes", "skills", "list"],
+             env=_consumer_env(bundle), cwd=bundle["workspace"], account=bundle["account"]),
+        "first-use skill initialization through the public launcher",
+    )
+    assert (home / "skills" / ".bundled_manifest").is_file()
     probe = r'''
 import json, os, sys
 from pathlib import Path
 import hermes_constants
 from hermes_cli.config import ensure_hermes_home
+from hermes_cli.env_loader import load_hermes_dotenv
 from hermes_state import SessionDB
+from tools.skills_tool import skills_list, skill_view
+from tools.terminal_tool import terminal_tool
+from tools.terminal_tool_lifecycle import cleanup_vm
+from tools.file_tools import read_file_tool
 ensure_hermes_home()
 home = hermes_constants.get_hermes_home()
+loaded_env = load_hermes_dotenv(
+    project_env=Path(hermes_constants.__file__).parent / ".env",
+    load_external_secrets=False,
+)
 try:
     with Path(sys.argv[1]).open(encoding="utf-8") as handle:
         handle.read(1)
     root_secret_readable = True
 except PermissionError:
     root_secret_readable = False
+task_id = "multiuser-first-use"
+try:
+    terminal_result = json.loads(terminal_tool("id -u", timeout=30, task_id=task_id, workdir=str(Path.cwd())))
+    probe_file = Path.cwd() / "consumer-tool-probe.txt"
+    probe_file.write_text("Consumer file tools work.\n", encoding="utf-8")
+    file_result = json.loads(read_file_tool(str(probe_file), task_id=task_id))
+finally:
+    cleanup_vm(task_id)
 db = SessionDB()
 try:
     db_path = str(db.db_path)
@@ -343,6 +373,12 @@ print("MULTIUSER_PROBE=" + json.dumps({
     "prefix": sys.prefix, "home": str(home), "db": db_path,
     "source": str(Path(hermes_constants.__file__).resolve().parent),
     "root_secret_readable": root_secret_readable,
+    "inherited_root_canary": "ROOT_ONLY_CANARY" in os.environ,
+    "loaded_env": [str(path) for path in loaded_env],
+    "terminal": terminal_result,
+    "file": file_result,
+    "skills": json.loads(skills_list()),
+    "loaded_skill": json.loads(skill_view("humanizer", preprocess=False)).get("_source_path"),
 }))
 '''
     result = _checked(
@@ -362,6 +398,21 @@ print("MULTIUSER_PROBE=" + json.dumps({
     assert Path(record["home"]) == home
     assert Path(record["db"]) == home / "state.db"
     assert record["root_secret_readable"] is False
+    assert record["inherited_root_canary"] is False
+    assert str(bundle["runtime_canary"]) not in record["loaded_env"]
+    assert record["terminal"]["exit_code"] == 0
+    assert record["terminal"]["output"].strip() == str(bundle["account"][0])
+    assert "Consumer file tools work." in record["file"]["content"]
+    assert record["skills"]["success"] and record["skills"]["skills"]
+    assert Path(record["loaded_skill"]).is_relative_to(home / "skills")
+    bundled = bundle["code"] / "skills"
+    for source in bundled.rglob("SKILL.md"):
+        installed = home / "skills" / source.relative_to(bundled)
+        assert installed.read_bytes() == source.read_bytes()
+        assert installed.stat().st_uid == bundle["account"][0]
+    assert not (home / ".env").exists()
+    assert not (home / "auth.json").exists()
+    manifest_before = (home / "skills" / ".bundled_manifest").read_bytes()
     for path in (home, home / "state.db"):
         assert path.stat().st_uid == bundle["account"][0]
     assert bundle["code"].stat().st_uid == 0
@@ -369,8 +420,11 @@ print("MULTIUSER_PROBE=" + json.dumps({
     assert stat.S_IMODE(bundle["private_home"].stat().st_mode) == 0o700
     assert stat.S_IMODE(bundle["canary"].stat().st_mode) == 0o600
     assert bundle["canary"].read_text(encoding="utf-8") == CANARY
+    assert bundle["runtime_canary"].read_text(encoding="utf-8") == CANARY
+    assert stat.S_IMODE(bundle["runtime_canary"].stat().st_mode) == 0o600
     _checked(
         _run([bundle["public"] / "hermes", "sessions", "list"],
              env=_consumer_env(bundle), cwd=bundle["workspace"], account=bundle["account"]),
         "normal CLI command with consumer-owned state",
     )
+    assert (home / "skills" / ".bundled_manifest").read_bytes() == manifest_before

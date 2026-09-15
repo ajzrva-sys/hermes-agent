@@ -4,7 +4,7 @@ description: Author/validate/export Google's DESIGN.md token spec files.
 version: 1.1.0
 author: Hermes Agent
 license: MIT
-platforms: [linux, macos, windows]
+platforms: [linux, macos, windows, freebsd]
 metadata:
   hermes:
     tags: [design, design-system, tokens, ui, accessibility, wcag, tailwind, dtcg, google]

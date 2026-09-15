@@ -19,7 +19,7 @@ Author in-repo SKILL.md files: frontmatter and structure.
 | Version | `2.0.0` |
 | Author | Hermes Agent |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `skills`, `authoring`, `hermes-agent`, `conventions`, `skill-md` |
 | Related skills | [`requesting-code-review`](/docs/user-guide/skills/bundled/software-development/software-development-requesting-code-review) |
 

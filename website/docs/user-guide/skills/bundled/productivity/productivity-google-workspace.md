@@ -19,7 +19,7 @@ Gmail, Calendar, Drive, Docs, Sheets via gws CLI or Python.
 | Version | `1.2.0` |
 | Author | Nous Research |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `Google`, `Gmail`, `Calendar`, `Drive`, `Sheets`, `Docs`, `Contacts`, `Email`, `OAuth` |
 | Related skills | [`himalaya`](/docs/user-guide/skills/bundled/email/email-himalaya) |
 

@@ -19,7 +19,7 @@ Watch product, flight, or listing prices; alert on target.
 | Version | `0.1.0` |
 | Author | Ben Barclay (benbarclay), Hermes Agent |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `Prices`, `Availability`, `Shopping`, `Travel`, `Alerts` |
 | Related skills | [`maps`](/docs/user-guide/skills/bundled/productivity/productivity-maps) |
 

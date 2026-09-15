@@ -19,7 +19,7 @@ Ground answers and documents in cited, verifiable sources.
 | Version | `1.2.0` |
 | Author | Hermes Agent + Teknium |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `Research`, `Citations`, `Grounding`, `Sources`, `Web`, `Reports` |
 | Related skills | [`arxiv`](/docs/user-guide/skills/bundled/research/research-arxiv), [`pdf`](/docs/user-guide/skills/bundled/productivity/productivity-pdf), [`reddit-reading`](/docs/user-guide/skills/optional/social-media/social-media-reddit-reading), [`rss-feeds`](/docs/user-guide/skills/optional/research/research-rss-feeds), [`youtube-content`](/docs/user-guide/skills/bundled/media/media-youtube-content) |
 

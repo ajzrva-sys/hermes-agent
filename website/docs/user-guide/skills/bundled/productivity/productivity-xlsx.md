@@ -19,7 +19,7 @@ Create, read, edit Excel .xlsx workbooks and CSVs.
 | Version | `1.1.0` |
 | Author | Nous Research |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `excel`, `spreadsheet`, `xlsx`, `csv`, `openpyxl`, `productivity` |
 | Related skills | [`docx`](/docs/user-guide/skills/bundled/productivity/productivity-docx), [`pdf`](/docs/user-guide/skills/bundled/productivity/productivity-pdf), [`powerpoint`](/docs/user-guide/skills/bundled/productivity/productivity-powerpoint) |
 

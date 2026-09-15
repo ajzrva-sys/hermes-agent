@@ -19,7 +19,7 @@ Design one-off HTML artifacts (landing, deck, prototype).
 | Version | `1.1.0` |
 | Author | BadTechBandit |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `design`, `html`, `prototype`, `ux`, `ui`, `creative`, `artifact`, `deck`, `motion`, `design-system` |
 | Related skills | [`design-md`](/docs/user-guide/skills/bundled/creative/creative-design-md), [`popular-web-designs`](/docs/user-guide/skills/bundled/creative/creative-popular-web-designs), [`excalidraw`](/docs/user-guide/skills/optional/creative/creative-excalidraw), [`architecture-diagram`](/docs/user-guide/skills/bundled/creative/creative-architecture-diagram) |
 

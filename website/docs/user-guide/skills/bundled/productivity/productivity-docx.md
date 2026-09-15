@@ -19,7 +19,7 @@ Create, read, edit, template, and review Word .docx files.
 | Version | `1.1.0` |
 | Author | Nous Research |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `word`, `docx`, `documents`, `office`, `templates`, `revisions`, `comments` |
 | Related skills | [`pdf`](/docs/user-guide/skills/bundled/productivity/productivity-pdf), [`xlsx`](/docs/user-guide/skills/bundled/productivity/productivity-xlsx), [`powerpoint`](/docs/user-guide/skills/bundled/productivity/productivity-powerpoint) |
 

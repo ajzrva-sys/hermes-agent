@@ -19,7 +19,7 @@ Inspect codebases w/ pygount: LOC, languages, ratios.
 | Version | `1.0.0` |
 | Author | Hermes Agent |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `LOC`, `Code Analysis`, `pygount`, `Codebase`, `Metrics`, `Repository` |
 | Related skills | [`github`](/docs/user-guide/skills/bundled/software-development/software-development-github) |
 

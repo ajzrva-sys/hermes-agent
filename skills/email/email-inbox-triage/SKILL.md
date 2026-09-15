@@ -4,7 +4,7 @@ description: "Triage an inbox: prioritize threads, draft replies safely."
 version: 0.1.0
 author: Ben Barclay (benbarclay), Hermes Agent
 license: MIT
-platforms: [linux, macos, windows]
+platforms: [linux, macos, windows, freebsd]
 metadata:
   hermes:
     tags: [Email, Inbox, Triage, Replies, Productivity]

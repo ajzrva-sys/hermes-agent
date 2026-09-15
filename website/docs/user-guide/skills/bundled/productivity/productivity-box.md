@@ -19,7 +19,7 @@ Box manages cloud files, sharing, search, and metadata.
 | Version | `1.0.0` |
 | Author | Chris Kim (iskysun96), Hermes Agent |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `Box`, `Productivity`, `Cloud Storage`, `Collaboration`, `Metadata`, `Content Extraction`, `CLI`, `SDK` |
 | Related skills | [`google-workspace`](/docs/user-guide/skills/bundled/productivity/productivity-google-workspace) |
 

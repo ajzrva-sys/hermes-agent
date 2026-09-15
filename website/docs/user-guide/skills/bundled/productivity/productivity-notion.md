@@ -19,7 +19,7 @@ Notion API + ntn CLI: pages, databases, markdown, Workers.
 | Version | `2.0.0` |
 | Author | community |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `Notion`, `Productivity`, `Notes`, `Database`, `API`, `CLI`, `Workers` |
 
 ## Reference: full SKILL.md

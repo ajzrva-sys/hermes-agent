@@ -19,7 +19,7 @@ YouTube transcripts to summaries, threads, blogs.
 | Version | `1.0.0` |
 | Author | Teknium (teknium1), Hermes Agent |
 | License | MIT |
-| Platforms | linux, macos, windows |
+| Platforms | linux, macos, windows, freebsd |
 | Tags | `YouTube`, `Video`, `Transcripts`, `Media` |
 
 ## Reference: full SKILL.md
