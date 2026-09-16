@@ -257,6 +257,25 @@ def _setup_backend_ssh(config: dict) -> None:
             _setup.print_info("  Check your SSH key and host settings.")
 
 
+def _setup_backend_freebsd_jail(config: dict) -> None:
+    """Native FreeBSD jail backend: the shared administrator-run jail service."""
+    from tools.freebsd_jail_client import capabilities
+    jail = config.setdefault("terminal", {}).setdefault("freebsd_jail", {})
+    jail.setdefault("grants", [])
+    jail.setdefault("read_only", False)
+    jail.setdefault("network", "restricted")
+    try:
+        caps = capabilities()
+        _setup.print_success(f"  Jail service available ({caps.get('service')}, protocol v{caps.get('version')})")
+    except Exception as exc:
+        _setup.print_warning(f"  Jail service unavailable: {exc}")
+        _setup.print_info("  Ask an administrator to start codex_freebsd_sandbox; jobs fail closed until then.")
+    jail["network"] = "enabled" if _setup.prompt_yes_no("  Allow jailed workers network access?", False) else "restricted"
+    jail["read_only"] = bool(_setup.prompt_yes_no("  Make the workspace read-only for workers?", False))
+    _setup.print_info("  Additional read/write/deny grants live under terminal.freebsd_jail.grants in config.yaml.")
+    _setup.print_info("  Provider credentials, messaging connections, and Hermes state stay outside the jail.")
+
+
 def _setup_backend_plugin(config: dict, backend: str) -> None:
     try:
         from agent.terminal_env_registry import get_provider
@@ -278,7 +297,7 @@ _BUILTIN_TERMINAL_BACKENDS = [
 _TERMINAL_BACKEND_SETUP = {
     "local": _setup_backend_local, "docker": _setup_backend_docker, "singularity": _setup_backend_singularity,
     "modal": _setup_backend_modal, "daytona": _setup_backend_daytona, "vercel_sandbox": _setup_backend_vercel,
-    "ssh": _setup_backend_ssh}
+    "ssh": _setup_backend_ssh, "freebsd_jail": _setup_backend_freebsd_jail}
 # Backend -> env var mirrored from config after setup (config.yaml is the source of truth, but
 # terminal_tool reads these from .env).
 _BACKEND_ENV_MIRROR = {"modal": ("TERMINAL_MODAL_MODE", "modal_mode", "auto"),
@@ -296,6 +315,8 @@ def setup_terminal_backend(config: dict):
     backends = list(_BUILTIN_TERMINAL_BACKENDS)
     if _platform.system() == "Linux":
         backends.append(("singularity", "Singularity/Apptainer - HPC-friendly container"))
+    if _platform.system() == "FreeBSD":
+        backends.append(("freebsd_jail", "FreeBSD jail - native isolation via the shared jail service"))
     # Plugin-registered backends (~/.hermes/plugins/). Fail-soft: a broken plugin must not take
     # the wizard down.
     plugin_backend_names = []

@@ -142,7 +142,7 @@ def _check_git_and_rg(should_fix: bool, f: Finding) -> None:
         check_info(f"Install for faster search: {_system_package_install_cmd('ripgrep')}")
 
 
-_BUILTIN_TERMINAL_BACKENDS = {"local", "docker", "singularity", "modal", "managed_modal", "daytona", "vercel_sandbox", "ssh"}
+_BUILTIN_TERMINAL_BACKENDS = {"local", "freebsd_jail", "docker", "singularity", "modal", "managed_modal", "daytona", "vercel_sandbox", "ssh"}
 
 
 def _check_docker_backend(terminal_env: str, running_in_container: bool, issues: list[str]) -> None:
@@ -235,7 +235,51 @@ def _check_plugin_backend(terminal_env: str, issues: list[str]) -> None:
         _require(ok, (label, detail), (label, detail), detail.strip("()"), issues)
 
 
-_BACKEND_CHECKS = {"ssh": _check_ssh_backend, "daytona": _check_daytona_backend, "vercel_sandbox": _check_vercel_backend}
+def _check_freebsd_jail_backend(issues: list[str]) -> None:
+    """Native jail service: identity, protocol capabilities, and the effective workspace policy.
+
+    Reports what IS covered (terminal, background/PTY, file workers, parsing, persistent
+    Python, stdio MCP/LSP, hooks, cron scripts) and the surfaces that stay in the trusted
+    controller, so a healthy run cannot be mistaken for whole-process isolation.
+    """
+    if not sys.platform.startswith("freebsd"):
+        _fail_and_issue("freebsd_jail backend requires native FreeBSD", "(configured on this platform)",
+                        "Set terminal.backend to a backend this host supports", issues)
+        return
+    try:
+        from tools.freebsd_jail_scope import configured_policy, settings
+        from tools.terminal_scope import terminal_env
+        grants, read_only, network = settings()
+        policy = configured_policy(terminal_env("TERMINAL_CWD", "") or os.getcwd())
+    except Exception as exc:
+        _fail_and_issue("freebsd_jail policy invalid", f"({exc})",
+                        "Fix terminal.freebsd_jail in config.yaml (concrete absolute grants, read_only, restricted/enabled network)", issues)
+        return
+    try:
+        from tools.freebsd_jail_client import capabilities
+        capabilities_result = capabilities()
+    except Exception as exc:
+        _fail_and_issue("FreeBSD jail service unavailable", f"({exc})",
+                        "Start codex_freebsd_sandbox (administrator), verify the socket and UID allowlist, "
+                        "and build the bridge with `cargo build --release --locked` in native/freebsd-sandbox", issues)
+        return
+    check_ok("FreeBSD jail service", f"({capabilities_result.get('service')} protocol v{capabilities_result.get('version')})")
+    features = capabilities_result.get("features") or []
+    if "source-identities-v1" in features:
+        check_ok("jail service source identities", "(" + ", ".join(str(f) for f in features) + ")")
+    else:
+        _fail_and_issue("jail service lacks source-identities-v1", f"({features})",
+                        "Update codex_freebsd_sandbox to a protocol-compatible build", issues)
+    check_info(f"jail workspace: {policy.workspace} ({'read-only' if read_only else 'read/write'})")
+    check_info(f"jail network: {policy.network}; configured extra grants: {len(grants)}; private controller state stays denied")
+    check_info("Jailed surfaces: terminal, background/PTY, file reads/searches/edits, document parsing, "
+               "persistent Python, stdio MCP/LSP, hooks, cron scripts")
+    check_info("Trusted controller (not jailed): provider/messaging connections, browser/desktop automation, "
+               "in-process plugin code, gateway attachment downloads")
+
+
+_BACKEND_CHECKS = {"ssh": _check_ssh_backend, "daytona": _check_daytona_backend, "vercel_sandbox": _check_vercel_backend,
+                   "freebsd_jail": _check_freebsd_jail_backend}
 
 
 @doctor_check()

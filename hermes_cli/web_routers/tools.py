@@ -110,6 +110,20 @@ def _probe_daytona_backend(_cfg) -> tuple:
     return ("needs_setup", "Set DAYTONA_API_KEY to use the Daytona backend.")
 
 
+def _probe_freebsd_jail_backend(_cfg) -> tuple:
+    import sys as _sys
+
+    if not _sys.platform.startswith("freebsd"):
+        return ("unavailable", "Native FreeBSD only.")
+    try:
+        from tools.freebsd_jail_client import capabilities
+
+        caps = capabilities()
+    except Exception as exc:
+        return ("needs_setup", f"Jail service unavailable: {exc}")
+    return ("ready", f"{caps.get('service')} protocol v{caps.get('version')}")
+
+
 _BACKEND_PROBES = {
     "local": lambda _cfg: ("ready", ""),
     "docker": _probe_docker_backend,
@@ -117,6 +131,7 @@ _BACKEND_PROBES = {
     "ssh": _probe_ssh_backend,
     "modal": _probe_modal_backend,
     "daytona": _probe_daytona_backend,
+    "freebsd_jail": _probe_freebsd_jail_backend,
 }
 
 

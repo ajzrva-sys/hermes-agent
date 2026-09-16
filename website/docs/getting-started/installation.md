@@ -204,6 +204,72 @@ The automated path remains CLI-first: Computer Use, Node UI dependencies, and
 automatic gateway service setup are skipped. Desktop installation is rejected.
 Provider authentication is separate; run `hermes model` before requesting a model response.
 
+### Jail isolation (experimental)
+
+On FreeBSD 15.1 Hermes can run its tool workloads inside native jails managed by
+the shared `codex_freebsd_sandbox` service (the same service used by Codex and
+CA). An administrator installs and starts that service and allowlists the
+invoking UID; Hermes itself needs no root and creates no second daemon.
+
+Build the unprivileged bridge once per checkout, as the installing user:
+
+```sh
+cd "$HERMES_HOME/hermes-agent/native/freebsd-sandbox" && cargo build --release --locked
+```
+
+Then enable it for a profile with `hermes setup` (Terminal backend → FreeBSD
+jail) or directly in `$HERMES_HOME/config.yaml`:
+
+```yaml
+terminal:
+  backend: freebsd_jail
+  cwd: /path/to/project
+  freebsd_jail:
+    grants: []            # extra concrete read/write/deny paths
+    read_only: false
+    network: restricted   # "enabled" only for jobs that must reach the network
+```
+
+`hermes doctor` reports the service identity, protocol capabilities, and the
+effective workspace policy; setup and the web dashboard expose the same backend.
+
+**Covered by the jail:** terminal commands, background jobs and PTYs, file
+reads, searches, edits and patches, document parsing, `execute_code` kernels,
+stdio MCP and LSP servers, shell hooks, and cron scripts.
+
+**Not jailed:** provider and messaging connections, browser/desktop automation,
+in-process plugin code, and the downloads the gateway performs for inbound
+attachments. Selection is fail-closed: an unavailable service, an unsupported
+policy, or a setup error blocks tool execution instead of falling back to host
+execution.
+
+Security boundary:
+
+- Jobs run as the invoking user with no-new-privileges; controller `sudo`
+  material is never passed into a jail and SUID binaries cannot elevate.
+- The selected project is the default grant. `/`, the home directory, and the
+  Hermes profile are never granted implicitly; `~/.hermes`, `~/.ssh`, `~/.codex`,
+  `~/.config/ca`, cloud credential directories, and other private state stay
+  denied even when a containing directory is granted.
+- Worker environments come from an explicit runtime allowlist; provider
+  credentials, tokens, and sockets stay with the controller.
+- Worker networking is disabled by default (`network: restricted`).
+- Cron scripts live under the profile, which stays denied to workers: the
+  scheduler hands the jail a private staging copy and runs the job in the
+  workspace unless the job configures a `workdir`.
+
+Troubleshooting and rollback:
+
+- "FreeBSD jail service unavailable" in `hermes doctor` means the administrator
+  must start `codex_freebsd_sandbox` or fix its socket/UID allowlist; a missing
+  bridge binary reports its path in the same message.
+- A job that needs files outside the project fails closed; add a concrete grant
+  (`terminal.freebsd_jail.grants`) rather than a parent directory.
+- To roll back, set `terminal.backend` back to `local` (or re-run `hermes setup`)
+  and restart the profile. The jail service, the installed tree, and other
+  profiles are unaffected; draining running jobs first avoids killing them
+  mid-flight.
+
 ### Developer checkout and authentication
 
 For an existing checkout, `bash setup-hermes.sh --skip-setup` reuses the native

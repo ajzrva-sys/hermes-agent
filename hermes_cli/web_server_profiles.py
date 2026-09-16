@@ -264,6 +264,8 @@ _TERMINAL_BACKENDS: List[Dict[str, str]] = [
          "Run commands in a Singularity/Apptainer container (HPC-friendly, rootless)."),
         ("modal", "Modal", "Run commands in a Modal cloud sandbox."),
         ("daytona", "Daytona", "Run commands in a Daytona cloud sandbox."),
+        ("freebsd_jail", "FreeBSD jail",
+         "Run commands in a native FreeBSD jail managed by the shared sandbox service."),
         ("ssh", "SSH", "Run commands on a remote host over SSH."))]
 
 
