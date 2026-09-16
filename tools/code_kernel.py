@@ -432,6 +432,8 @@ def _resolve_owner(task_id: str) -> str:
 def shutdown_all_kernels() -> None:
     """Kill every session kernel. Registered via atexit; also used by tests."""
     _REGISTRY.shutdown()
+    from tools.freebsd_jail_kernel import shutdown
+    shutdown()
 
 
 def shutdown_kernels_for_owner(owner: str) -> None:
@@ -442,6 +444,8 @@ def shutdown_kernels_for_owner(owner: str) -> None:
     """
     if owner:
         _REGISTRY.shutdown(owner)
+        from tools.freebsd_jail_kernel import shutdown
+        shutdown(owner)
 
 
 atexit.register(shutdown_all_kernels)

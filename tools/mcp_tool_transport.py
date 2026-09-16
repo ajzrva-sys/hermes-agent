@@ -236,7 +236,12 @@ class MCPServerTransportMixin:
         _config._write_stderr_log_header(self.name)
         try:
             errlog = _config._get_mcp_stderr_log()
-            async with _core.stdio_client(server_params, errlog=errlog) as (read_stream, write_stream):
+            from tools.freebsd_jail_launch import required
+            transport = _core.stdio_client
+            if required():
+                from tools.freebsd_jail_mcp import stdio_client
+                transport = stdio_client
+            async with transport(server_params, errlog=errlog) as (read_stream, write_stream):
                 # New PIDs for force-kill cleanup, minus non-MCP children (slash_worker, LSP) racing
                 # into the window: they share the TUI's pgid — leaking them would killpg() the TUI.
                 new_pids = _filter_mcp_children(_lifecycle._snapshot_child_pids() - pids_before)

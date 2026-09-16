@@ -717,6 +717,9 @@ def execute_code(
     if _guard.get("user_approved"):
         from tools.interrupt import clear_current_thread_interrupt
         clear_current_thread_interrupt()
+    if env_type == "freebsd_jail":
+        from tools.freebsd_jail_kernel import execute
+        return execute(code, task_id, enabled_tools, reset=bool(reset))
     if env_type != "local":
         return _execute_remote(code, task_id, enabled_tools, reset=bool(reset))
     from tools.interrupt import is_interrupted as _is_interrupted

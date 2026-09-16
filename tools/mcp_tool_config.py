@@ -97,6 +97,10 @@ def _build_safe_env(user_env: Optional[dict]) -> dict:
     """Filtered env for stdio subprocesses so API keys/tokens don't leak: the safe baseline
     keys, ``XDG_*``, vars injected by an external secret source (users configured that backend
     precisely so subprocesses can consume them), plus the server config's own ``env``."""
+    from tools.freebsd_jail_launch import required
+    if required():
+        from tools.freebsd_jail_policy import worker_environment
+        return {**worker_environment(), **(user_env or {})}
     from agent.secret_scope import get_secret
     from hermes_cli.env_loader import secret_source_names
     env = {

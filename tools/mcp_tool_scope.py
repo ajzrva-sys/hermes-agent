@@ -26,6 +26,10 @@ ServerKey = Union[str, Tuple[str, str]]
 def _server_key(name: str, scope: Optional[str] = None, *, current: bool = True) -> ServerKey:
     """Connection key for *name* owned by *scope* (the current registry scope when *current*).
     ``None`` scope (no multiplexer) keeps the bare name."""
+    from tools.freebsd_jail_launch import required
+    if required():
+        from tools.freebsd_jail_scope import cache_identity
+        return (cache_identity(None, ""), name)
     if scope is None and current:
         scope = _core._mcp_registry_scope()
     return name if scope is None else (scope, name)
@@ -55,6 +59,9 @@ def _resolve_server_key(name: str, scope: Optional[str] = None, *, current: bool
     if scope is None and current:
         scope = _core._mcp_registry_scope()
     own = _server_key(name, scope, current=False)
+    from tools.freebsd_jail_launch import required
+    if required():
+        return own
     if scope is None or own in _core._servers or own in _core._lazy_server_configs:
         return own
     for key, scopes in _core._server_tool_scopes.items():

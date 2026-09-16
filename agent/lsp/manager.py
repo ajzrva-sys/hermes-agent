@@ -35,6 +35,10 @@ _Diags = List[Dict[str, Any]]
 def _client_key(srv: ServerDef, root: str) -> _Key:
     """Cache key for the client serving ``root``: multi-root servers share one process per
     ``server_id``; everything else is keyed per resolved project root."""
+    from tools.freebsd_jail_launch import required
+    if required():
+        from tools.freebsd_jail_scope import cache_identity
+        return (srv.server_id, root + ":" + cache_identity(None, ""))
     return (srv.server_id, "" if srv.multi_root else root)
 
 

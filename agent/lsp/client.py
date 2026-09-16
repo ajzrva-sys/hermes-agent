@@ -215,12 +215,16 @@ class LSPClient:
             # the gateway's pgid and mcp_tool's orphan sweeper can killpg() the TUI parent with it.
             # windows_hide_flags() suppresses the console window a .cmd shim would flash from a
             # console-less host (CREATE_NO_WINDOW; 0 on POSIX).
-            self._proc = await asyncio.create_subprocess_exec(
-                cmd[0], *cmd[1:],
-                stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-                env=delegated_child_subprocess_env({**os.environ, **(self._env or {})}), cwd=self._cwd,
-                start_new_session=True, creationflags=windows_hide_flags(),
-            )
+            from tools.freebsd_jail_launch import required, launch_async
+            if required():
+                self._proc = await launch_async(cmd, cwd=self._cwd, server_environment=self._env)
+            else:
+                self._proc = await asyncio.create_subprocess_exec(
+                    cmd[0], *cmd[1:],
+                    stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+                    env=delegated_child_subprocess_env({**os.environ, **(self._env or {})}), cwd=self._cwd,
+                    start_new_session=True, creationflags=windows_hide_flags(),
+                )
         except FileNotFoundError as e:
             raise LSPProtocolError(f"LSP server binary not found: {cmd[0]} ({e})") from e
         # stderr must be drained or the pipe buffer fills and the server hangs.
