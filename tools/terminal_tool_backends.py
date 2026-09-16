@@ -26,7 +26,7 @@ logger = logging.getLogger("tools.terminal_tool")
 
 _VERCEL_SANDBOX_DEFAULT_CWD = "/vercel/sandbox"
 _SUPPORTED_VERCEL_RUNTIMES = ("node24", "node22", "python3.13")
-_BUILTIN_BACKENDS = "local, docker, singularity, modal, daytona, vercel_sandbox, ssh"
+_BUILTIN_BACKENDS = "local, freebsd_jail, docker, singularity, modal, daytona, vercel_sandbox, ssh"
 
 # Config -> kwargs shapers, driven by (out_key, config_key, default) tables. The container table's
 # (key, default) literal is intentionally greppable; tools/terminal_tool.py keeps its own for the AST test.
@@ -102,6 +102,18 @@ def _modal_unavailable_reason(modal_state: Dict[str, Any]) -> tuple[str, str]:
 # --- Environment builders. Signature: (*, env_type, image, cwd, timeout, cc, task_id, ssh_config, host_cwd)
 def _build_local_env(*, cwd, timeout, **_):
     return _LocalEnvironment(cwd=cwd, timeout=timeout)
+
+
+def _build_freebsd_jail_env(*, cwd, timeout, **_):
+    from tools.environments.freebsd_jail import FreeBSDJailEnvironment
+    from tools.freebsd_jail_scope import configured_policy
+    return FreeBSDJailEnvironment(cwd=cwd, timeout=timeout, policy=configured_policy(cwd))
+
+
+def _check_freebsd_jail(config):
+    from tools.freebsd_jail_client import capabilities
+    capabilities()
+    return True
 
 
 def _build_docker_env(*, image, cwd, timeout, cc, task_id, host_cwd, **_):
@@ -202,7 +214,7 @@ def _build_plugin_env(*, env_type, image, cwd, timeout, cc, task_id, **_):
 
 
 # Built-in backend -> builder. Anything else is looked up in the plugin registry.
-_ENV_BUILDERS = {"local": _build_local_env, "docker": _build_docker_env, "singularity": _build_singularity_env,
+_ENV_BUILDERS = {"local": _build_local_env, "freebsd_jail": _build_freebsd_jail_env, "docker": _build_docker_env, "singularity": _build_singularity_env,
                  "modal": _build_modal_env, "daytona": _build_daytona_env, "vercel_sandbox": _build_vercel_env,
                  "ssh": _build_ssh_env}
 
@@ -279,6 +291,7 @@ def _daytona_post(config: Dict[str, Any]) -> bool:
 
 _BACKEND_SPECS: Dict[str, Dict[str, Any]] = {
     "local": {},
+    "freebsd_jail": {"pre": _check_freebsd_jail},
     "docker": {"binary": (lambda: importlib.import_module("tools.environments.docker").find_docker(), "version",
                           "Docker executable not found in PATH or common install locations")},
     "singularity": {"binary": (lambda: shutil.which("apptainer") or shutil.which("singularity"), "--version", None)},

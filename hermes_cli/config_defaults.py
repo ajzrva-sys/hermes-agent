@@ -258,6 +258,8 @@ DEFAULT_CONFIG = {
 
     "terminal": {
         "backend": "local",
+        # Explicit user configuration, never inferred from broad tool approval.
+        "freebsd_jail": {"grants": [], "read_only": False, "network": "restricted"},
         "modal_mode": "auto",
         # Remote-backend connection-class failures (SSH host unreachable, Docker daemon down):
         # "warn" = structured degraded tool result with reason + retry hint; "fail" = raise error +

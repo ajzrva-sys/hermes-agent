@@ -92,6 +92,8 @@ def _spawn(process_registry, *, env, env_type, command, cwd, effective_task_id, 
     if env_type == "local":
         return process_registry.spawn_local(
             env_vars=env.env if hasattr(env, 'env') else None, use_pty=effective_pty, **common)
+    if callable(getattr(env, "spawn_background", None)):
+        return env.spawn_background(process_registry, use_pty=effective_pty, **common)
     return process_registry.spawn_via_env(env=env, **common)
 
 
@@ -216,7 +218,7 @@ def yield_to_background_handler(
     is adopted by the process registry as a notify-on-complete background session and the
     partial output is returned to the model right away. Other backends return None (no
     adoptable host process) and the foreground wait continues."""
-    if env_type != "local":
+    if env_type not in {"local", "freebsd_jail"}:
         return None
 
     def _handler(proc, output_so_far: str) -> dict:

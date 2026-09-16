@@ -415,9 +415,12 @@ def _resolve_container_task_id(task_id: Optional[str]) -> str:
        keyed profile would split from its gateway sessions), else ``"default"``,
        which subagent ids collapse onto to share the parent's container.
     """
+    scope = _session_scope()
+    if scope.env_type == "freebsd_jail":
+        from tools.freebsd_jail_scope import cache_identity
+        return cache_identity(task_id, _current_session_key())
     if task_id and _has_isolation_overrides(task_id):
         return task_id
-    scope = _session_scope()
     if task_id and scope.session_isolated:
         return _resolve_container_alias(task_id)
     # Per-session isolation: when a session key is present (the WebUI streaming layer sets it per-session,
@@ -486,7 +489,8 @@ def _lookup_active_env(effective_task_id: str, task_id: Optional[str]):
     yet an env may already be cached under the originating task_id; honor it
     instead of spawning a duplicate. Refreshes ``_last_activity`` on a hit.
     """
-    for key in (effective_task_id, task_id):
+    keys = (effective_task_id,) if effective_task_id.startswith("freebsd:") else (effective_task_id, task_id)
+    for key in keys:
         if key and key in _active_environments:
             _last_activity[key] = time.time()
             return _active_environments[key]
@@ -945,7 +949,9 @@ def _plan_execution(
     overrides = resolve_task_overrides(task_id)
     image = _select_image(env_type, overrides, config)
 
-    cwd = overrides.get("cwd") or get_session_cwd(task_id) or config["cwd"]
+    # A worker-reported cwd is execution state, never a new filesystem grant.
+    recorded_cwd = None if env_type == "freebsd_jail" else get_session_cwd(task_id)
+    cwd = overrides.get("cwd") or recorded_cwd or config["cwd"]
     host_cwd = _resolve_task_host_cwd(config, task_id)
     # config["cwd"] was sanitized for container backends in _get_env_config
     # but an override / session record is raw: a host path would reach

@@ -64,6 +64,8 @@ def _terminal_env_type_for_task(task_id: str = "default") -> str:
 
 def _uses_container_paths(task_id: str = "default") -> bool:
     env_type = _terminal_env_type_for_task(task_id)
+    if env_type == "freebsd_jail":
+        return True
     try:
         from tools.terminal_tool import _is_container_backend
 

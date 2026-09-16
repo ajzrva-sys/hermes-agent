@@ -62,7 +62,7 @@ def _is_host_cwd(path: str) -> bool:
     return path.startswith(_HOST_CWD_PREFIXES) or bool(_WINDOWS_DRIVE_RE.match(path))
 
 _CONTAINER_BACKENDS = frozenset({"docker", "singularity", "modal", "daytona", "vercel_sandbox"})
-_BUILTIN_BACKENDS = _CONTAINER_BACKENDS | {"local", "ssh", "managed_modal"}
+_BUILTIN_BACKENDS = _CONTAINER_BACKENDS | {"local", "ssh", "managed_modal", "freebsd_jail"}
 
 
 def _plugin_registry_lookup(env_type: str, fn_name: str, default, *args):

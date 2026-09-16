@@ -260,7 +260,7 @@ def _create_terminal_env_for_file_ops(raw_task_id: str, task_id: str):
     env_type = config["env_type"]
     overrides = resolve_task_overrides(raw_task_id)
     try:
-        recorded_cwd = get_session_cwd(raw_task_id)
+        recorded_cwd = None if env_type == "freebsd_jail" else get_session_cwd(raw_task_id)
     except Exception:
         recorded_cwd = None
     cwd = overrides.get("cwd") or recorded_cwd or config["cwd"]
@@ -349,7 +349,8 @@ def _get_file_ops(task_id: str = "default") -> ShellFileOperations:
             _start_cleanup_thread()
             logger.info("%s environment ready for task %s", env_type, task_id[:8])
 
-    file_ops = ShellFileOperations(terminal_env)
+    factory = getattr(terminal_env, "file_operations", None)
+    file_ops = factory() if callable(factory) else ShellFileOperations(terminal_env)
     with _file_ops_lock:
         _file_ops_cache[task_id] = file_ops
     return file_ops
@@ -420,11 +421,16 @@ def _read_extracted_document(path: str, _resolved, offset: int, limit: int, task
         return None
     file_ops = _get_file_ops(task_id)
     try:
-        binary = file_ops.read_file_bytes(str(_resolved), max_bytes=MAX_DOCUMENT_BYTES)
-        if binary.error or binary.base64_content is None:
-            raise ExtractionError(binary.error or "Document bytes unavailable")
-        document_bytes = base64.b64decode(binary.base64_content, validate=True)
-        extracted_text = extract_document_bytes(document_bytes, str(_resolved))
+        extractor = getattr(file_ops, "extract_document", None)
+        if callable(extractor):
+            extracted_text, extracted_size = extractor(str(_resolved))
+        else:
+            binary = file_ops.read_file_bytes(str(_resolved), max_bytes=MAX_DOCUMENT_BYTES)
+            if binary.error or binary.base64_content is None:
+                raise ExtractionError(binary.error or "Document bytes unavailable")
+            document_bytes = base64.b64decode(binary.base64_content, validate=True)
+            extracted_text = extract_document_bytes(document_bytes, str(_resolved))
+            extracted_size = binary.file_size
     except (ExtractionError, ValueError, base64.binascii.Error) as exc:
         logger.debug("document extraction failed for %s", path, exc_info=True)
         # Binary formats surface the specific failure (fallthrough would only
@@ -447,7 +453,7 @@ def _read_extracted_document(path: str, _resolved, offset: int, limit: int, task
     result_dict = {
         "content": file_ops._add_line_numbers(page_text, offset) if page_text else "",
         "total_lines": total_lines,
-        "file_size": binary.file_size,
+        "file_size": extracted_size,
         "truncated": total_lines > end_line,
         "extracted_document": True}
     if result_dict["truncated"]:
